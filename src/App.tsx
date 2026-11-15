@@ -52,7 +52,8 @@ function Auth() {
     <input className={inp + ' w-full'} placeholder="E-Mail" type="email" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} />
     <input className={inp + ' w-full'} placeholder="Passwort" type="password" autoComplete="current-password" value={pw} onChange={e => setPw(e.target.value)} />
     <div className="grid grid-cols-2 gap-2"><button className={btn} onClick={() => run('in')}>Anmelden</button><button className="inline-flex items-center justify-center rounded-xl border border-zinc-300 px-4 py-2 text-sm font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800" onClick={() => run('up')}>Registrieren</button></div>
-    <button className="text-sm text-indigo-600 underline dark:text-indigo-300" onClick={() => run('reset')}>Passwort zurücksetzen</button>{msg && <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-800 dark:bg-amber-500/10 dark:text-amber-300">{msg}</p>}</div></div>;
+    <button className="text-sm text-indigo-600 underline dark:text-indigo-300" onClick={() => run('reset')}>Passwort zurücksetzen</button>
+    <div className="flex justify-center gap-4 text-xs text-zinc-500"><a className="underline" href={import.meta.env.BASE_URL + 'impressum.html'}>Impressum</a><a className="underline" href={import.meta.env.BASE_URL + 'datenschutz.html'}>Datenschutz</a></div>{msg && <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-800 dark:bg-amber-500/10 dark:text-amber-300">{msg}</p>}</div></div>;
 }
 
 function Stat({ l, v }: { l: string; v: string | number }) { return <div className={card + ' !p-3 sm:!p-4'}><div className="text-[11px] font-medium uppercase leading-tight tracking-wide text-zinc-500 sm:text-xs">{l}</div><div className="mt-1 break-words text-xl font-semibold tabular-nums tracking-tight sm:text-2xl md:text-3xl">{v}</div></div>; }
