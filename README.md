@@ -26,7 +26,7 @@ Lokal entwickeln: `.env.example` nach `.env.local` kopieren, Werte eintragen, `n
 - Supabase Free enthält keine automatische Wiederherstellung: regelmäßig exportieren.
 
 ## Aufbau
-`src/lib/stats.ts` zentrale Statistik-Engine · `src/lib/data.ts` IndexedDB + Synchronisierung + Konflikte · `src/lib/tz.ts` Zeitzone · `src/lib/music.ts` Hintergrundmusik für Reading Wrapped (im Browser erzeugt, ein-/ausschaltbar) · `src/lib/game.ts` + `src/Game.tsx` Spielelemente · `src/lib/goals.ts` Zielvorschläge · `src/Library.tsx` Bücher · `src/Reports.tsx` Auswertungen/PDF · `supabase/migrations/` Datenbank + RLS.
+`src/lib/stats.ts` zentrale Statistik-Engine · `src/lib/data.ts` IndexedDB + Synchronisierung + Konflikte · `src/lib/tz.ts` Zeitzone · `src/lib/music.ts` Hintergrundmusik für Reading Wrapped (im Browser erzeugt, ein-/ausschaltbar) · `src/lib/game.ts` + `src/Game.tsx` Spielelemente · `src/lib/goals.ts` Zielvorschläge · `src/Library.tsx` Bücher · `src/Reports.tsx` Auswertungen/PDF · `supabase/migrations/` Datenbank + RLS · `src/Friends.tsx` + `src/lib/friends.ts` Freunde, Challenges, Datenschutz.
 
 ## Spielelemente (XP, Level, Abzeichen-Pop-ups, Streak-Schutz, Überraschungen)
 1. `supabase/migrations/003_game_events.sql` im Supabase-SQL-Editor einmal ausführen (legt die Tabelle `game_events` an).
@@ -47,3 +47,12 @@ Regeln (zentral in `src/lib/game.ts`): 1 XP je Seite und Minute, 10 XP je Leseta
 4. Secrets in Supabase: `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` (mailto:…), `CRON_SECRET`.
 5. `supabase/setup/cron_reminders.sql.txt` mit eigenen Werten im SQL-Editor ausführen.
 6. GitHub-Secret `VITE_VAPID_PUBLIC_KEY` anlegen, Deploy neu starten.
+
+## Freunde (Anfragen, Datenschutz, Challenges, gemeinsame Ziele)
+1. `supabase/migrations/005_friends.sql` im Supabase-SQL-Editor einmal komplett ausführen (New query -> einfügen -> Run). Es müssen "Success"-Meldungen erscheinen, keine roten Fehler.
+2. Neuen Code nach GitHub hochladen (Dateien `src/App.tsx`, `src/Friends.tsx`, `src/lib/friends.ts`, `README.md`, `supabase/migrations/005_friends.sql`) und den Deploy abwarten.
+3. In der App: Menüpunkt **Freunde** öffnen, Namen wählen, festlegen was geteilt wird, einschalten. Danach Freundes-Code austauschen.
+
+Datenschutz: Standardmäßig ist nichts sichtbar, bis die Funktion eingeschaltet wird. Freunde lesen nie direkt aus deinen Tabellen; sie sehen nur eine kleine Zusammenfassung, die der Server nach deinen Einstellungen filtert. Nie geteilt werden E-Mail, Buchtitel (außer optional das aktuelle Buch), Sessions, Notizen, Bewertungen und Ziele. Challenge-Teilnehmende sehen den Fortschritt der anderen in dieser Challenge.
+
+Challenges: Wettbewerb (wer schafft am meisten) oder gemeinsames Ziel (zusammen X Seiten/Minuten/Lesetage/Bücher). Gezählt wird ab dem Startdatum; der Fortschritt wird automatisch gemeldet, solange die App geöffnet ist. Ohne die Tabellen läuft die App weiter, der Bereich zeigt dann einen Hinweis.
