@@ -131,8 +131,8 @@ const rewardText = (e: GameEvent) => (e.data?.type === 'shield' ? 'Zusätzliches
 export function GameStrip() {
   const g = useG(); if (!g) return null;
   const { lvl } = g;
-  return <section className={card + ' flex flex-col gap-4 md:flex-row md:items-center md:gap-6'}>
-    <div className="flex items-center gap-4"><div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 text-3xl font-extrabold tabular-nums text-white shadow-md shadow-orange-500/30">{lvl.level}</div>
+  return <section className={card + ' flex flex-col gap-3 !p-4 md:flex-row md:items-center md:gap-6 md:!p-5'}>
+    <div className="flex items-center gap-4"><div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 text-2xl font-extrabold md:h-16 md:w-16 md:text-3xl tabular-nums text-white shadow-md shadow-orange-500/30">{lvl.level}</div>
       <div className="min-w-0"><div className="text-xs font-medium uppercase tracking-wide text-zinc-500">Level {lvl.level}</div><div className="truncate font-semibold">{lvl.title}</div><div className="text-xs tabular-nums text-zinc-500">{de(g.xp)} XP gesamt</div></div></div>
     <div className="min-w-0 flex-1"><div className="flex justify-between text-xs tabular-nums text-zinc-500"><span>{de(lvl.into)} / {de(lvl.span)} XP</span><span>Level {lvl.level + 1}</span></div><XpBar pct={lvl.pct} /></div>
     {g.hasStart && <div className="flex items-center gap-3 text-xs text-zinc-500" title="Streak-Schutz: Schutzschilde und Pausenmodus"><Shields n={g.shields} />
@@ -141,22 +141,23 @@ export function GameStrip() {
 }
 
 // ---------- Bereiche auf der Seite "Motivation" ----------
-export function GamePanels() {
+export function GamePanels({ part }: { part?: 'level' | 'protect' }) {
   const g = useG(), [n, setN] = useState(7), [msg, setMsg] = useState('');
   if (!g) return null;
+  const showLv = !part || part === 'level', showPr = !part || part === 'protect';
   const left = PAUSE_YEAR - g.pause.used, opts = [3, 5, 7, 10, 14].filter(x => x <= Math.min(PAUSE_MAX, left)), pick = opts.includes(n) ? n : opts[opts.length - 1];
   const { lvl, parts } = g;
   return <>
     {g.gstat === 'missing' && <div className="rounded-2xl border border-amber-400 bg-amber-50 p-4 text-sm text-amber-900 dark:bg-zinc-900 dark:text-amber-200">Für Schutzschilde, Pausenmodus, Abzeichen-Daten und Überraschungen fehlt noch die neue Datenbanktabelle <b>game_events</b>. Führe dazu die Datei <b>003_game_events.sql</b> im Supabase-SQL-Editor aus (siehe README, Abschnitt „Spielelemente“). XP und Level funktionieren auch jetzt schon.</div>}
-    <Sec icon={Star} title="Level & XP"><div className="grid gap-3 md:grid-cols-2">
+    {showLv && <Sec icon={Star} title="Level & XP"><div className="grid gap-3 md:grid-cols-2">
       <div className={card}><div className="flex items-center gap-4"><div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-3xl bg-gradient-to-br from-amber-400 to-orange-500 text-4xl font-extrabold tabular-nums text-white shadow-lg shadow-orange-500/30">{lvl.level}</div>
         <div className="min-w-0"><div className="text-lg font-semibold">{lvl.title}</div><div className="text-sm tabular-nums text-zinc-500">{de(g.xp)} XP gesamt</div></div></div>
         <div className="mt-4 flex justify-between text-xs tabular-nums text-zinc-500"><span>{de(lvl.into)} / {de(lvl.span)} XP</span><span>Noch {de(lvl.span - lvl.into)} XP bis Level {lvl.level + 1}</span></div><XpBar pct={lvl.pct} /></div>
       <div className={card}><h3 className="mb-2 font-medium">So sammelst du XP</h3>
         <KV l="Gelesene Seiten (1 XP je Seite)" v={de(parts.pages)} /><KV l="Lesezeit (1 XP je Minute)" v={de(parts.minutes)} /><KV l="Lesetage (10 XP je Tag)" v={de(parts.days)} /><KV l="Abgeschlossene Bücher (100 XP je Buch)" v={de(parts.books)} /><KV l="Abzeichen & Überraschungen (Bonus)" v={de(g.bonus)} />
-        <p className="mt-2 text-xs text-zinc-500">Pro Session zählen höchstens 100 Seiten und 120 Minuten. Ein neues Abzeichen bringt 25 XP mal Stufe.</p></div></div></Sec>
+        <p className="mt-2 text-xs text-zinc-500">Pro Session zählen höchstens 100 Seiten und 120 Minuten. Ein neues Abzeichen bringt 25 XP mal Stufe.</p></div></div></Sec>}
 
-    <Sec icon={Shield} title="Streak-Schutz & Pausenmodus"><div className="grid gap-3 md:grid-cols-2">
+    {showPr && <Sec icon={Shield} title="Streak-Schutz & Pausenmodus"><div className="grid gap-3 md:grid-cols-2">
       <div className={card + ' space-y-2'}><h3 className="font-medium">Schutzschilde</h3><div className="flex items-center gap-3"><Shields n={g.hasStart ? g.shields : 0} size="h-8 w-8" /><span className="text-sm tabular-nums text-zinc-500">{g.hasStart ? g.shields : 0} von {SHIELD_MAX}</span></div>
         <p className="text-sm text-zinc-600 dark:text-zinc-300">Verpasst du Tage, setzt automatisch je Tag ein Schild ein und rettet deinen Streak (ab einem Streak von 3 Tagen). Alle {SHIELD_EVERY} Lesetage gibt es ein neues Schild, du startest mit einem. Manchmal verstecken sich Schilde auch in Überraschungen.</p>
         {g.freezes.length > 0 && <p className="text-xs text-zinc-500">Zuletzt eingesetzt: {g.freezes.slice(0, 4).map(e => fd(e.event_date)).join(', ')}</p>}</div>
@@ -166,11 +167,11 @@ export function GamePanels() {
           : <><p className="text-sm text-zinc-600 dark:text-zinc-300">Für Urlaub, Krankheit oder stressige Tage: Dein Streak bleibt geschützt und es kommen keine Erinnerungen. Höchstens {PAUSE_MAX} Tage am Stück, {PAUSE_YEAR} Tage pro Jahr.</p>
             <div className="flex flex-wrap items-center gap-2"><select className={inp} value={pick} disabled={!opts.length} onChange={e => setN(+e.target.value)}>{opts.map(x => <option key={x} value={x}>{x} Tage</option>)}</select>
               <button className={btn} disabled={!opts.length || !g.gameOk} onClick={() => { if (confirm(`Pausenmodus für ${pick} Tage starten?`)) void g.startPause(pick).then(setMsg); }}>Pause starten</button></div></>}
-        <p className="text-xs text-zinc-500">In diesem Jahr genutzt: {g.pause.used} von {PAUSE_YEAR} Tagen.</p>{msg && <p className="text-sm text-indigo-700 dark:text-indigo-300">{msg}</p>}</div></div></Sec>
+        <p className="text-xs text-zinc-500">In diesem Jahr genutzt: {g.pause.used} von {PAUSE_YEAR} Tagen.</p>{msg && <p className="text-sm text-indigo-700 dark:text-indigo-300">{msg}</p>}</div></div></Sec>}
 
-    <Sec icon={Gift} title="Überraschungen"><div className={card + ' space-y-2'}>
+    {showPr && <Sec icon={Gift} title="Überraschungen"><div className={card + ' space-y-2'}>
       <p className="text-sm text-zinc-600 dark:text-zinc-300">An Tagen, an denen du mindestens {MIN_REWARD_MIN} Minuten liest, wartet manchmal eine Überraschung auf dich: Bonus-XP, eine Schatztruhe oder ein Schutzschild. Spätestens nach 5 Lesetagen ohne Überraschung ist wieder eine fällig.</p>
-      {g.rewards.length === 0 ? <p className="text-sm text-zinc-500">Noch keine Überraschung erhalten – lies einfach weiter!</p> : g.rewards.slice(0, 6).map(e => <div key={e.id} className="flex justify-between border-b border-zinc-100 py-1 text-sm last:border-0 dark:border-zinc-700"><span>{rewardText(e)}</span><span className="text-zinc-500">{fd(e.event_date)}</span></div>)}</div></Sec></>;
+      {g.rewards.length === 0 ? <p className="text-sm text-zinc-500">Noch keine Überraschung erhalten – lies einfach weiter!</p> : g.rewards.slice(0, 6).map(e => <div key={e.id} className="flex justify-between border-b border-zinc-100 py-1 text-sm last:border-0 dark:border-zinc-700"><span>{rewardText(e)}</span><span className="text-zinc-500">{fd(e.event_date)}</span></div>)}</div></Sec>}</>;
 }
 
 // ---------- Pop-ups mit Feier-Animation ----------

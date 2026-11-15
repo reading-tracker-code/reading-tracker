@@ -56,3 +56,6 @@ Regeln (zentral in `src/lib/game.ts`): 1 XP je Seite und Minute, 10 XP je Leseta
 Datenschutz: Standardmäßig ist nichts sichtbar, bis die Funktion eingeschaltet wird. Freunde lesen nie direkt aus deinen Tabellen; sie sehen nur eine kleine Zusammenfassung, die der Server nach deinen Einstellungen filtert. Nie geteilt werden E-Mail, Buchtitel (außer optional das aktuelle Buch), Sessions, Notizen, Bewertungen und Ziele. Challenge-Teilnehmende sehen den Fortschritt der anderen in dieser Challenge.
 
 Challenges: Wettbewerb (wer schafft am meisten) oder gemeinsames Ziel (zusammen X Seiten/Minuten/Lesetage/Bücher). Gezählt wird ab dem Startdatum; der Fortschritt wird automatisch gemeldet, solange die App geöffnet ist. Ohne die Tabellen läuft die App weiter, der Bereich zeigt dann einen Hinweis.
+
+## Übersicht, Mobilansicht und Einstiegstour
+Reiter statt langer Seiten (Statistik, Motivation, Einstellungen, Freunde), eingeklappte Filter und Diagramme auf dem Handy, Menü „Mehr“ als Kachel-Auswahl. Neue Nutzer*innen (noch keine Bücher/Sessions) sehen beim ersten Start eine kurze Tour (`src/Tour.tsx`). Wiederholen: Einstellungen → Anzeige → „Einführungstour ansehen“. Es sind keine Datenbank-Änderungen nötig.

@@ -5,7 +5,7 @@ import { useG } from './Game';
 import { TZ } from './lib/tz';
 import { dayKey, type Book, type Session } from './lib/stats';
 import { DEFAULT_SHARE, METRIC, SHARE, call, daysLeft, enableFriends, fd, isFrozen, isMissing, maskStats, myProgress, mySnapshot, phase, plusDays, saveSettings, type Challenge, type FRel, type FSettings, type FStats, type Metric } from './lib/friends';
-import { Empty, Skeleton, btn, card, inp } from './ui';
+import { Empty, Skeleton, SubTabs, btn, card, inp } from './ui';
 
 const de = (n: number) => n.toLocaleString('de-DE');
 const ghost = 'rounded-xl border border-zinc-300 px-4 py-2 text-sm font-medium dark:border-zinc-700';
@@ -234,7 +234,7 @@ export function Friends({ fr, books, sessions, uid }: { fr: FriendsApi; books: B
   const inc = fr.rels.filter(r => r.state === 'incoming').length, inv = fr.challenges.filter(c => c.my_status === 'invited').length;
   const tabs: [string, number][] = [['Freunde', inc], ['Challenges', inv], ['Datenschutz', 0]];
   return <div className="space-y-4">
-    <div className="flex flex-wrap gap-1">{tabs.map(([t, n], i) => <button key={t} onClick={() => { setTab(i); setPre([]); setMsg(''); }} className={`rounded-lg px-3 py-1.5 text-sm ${tab === i ? 'bg-indigo-600 text-white' : 'hover:bg-zinc-200 dark:hover:bg-zinc-700'}`}>{t}{n > 0 && <span className="ml-1.5 rounded-full bg-amber-400 px-1.5 text-xs font-semibold text-amber-950">{n}</span>}</button>)}</div>
+    <SubTabs tabs={tabs.map(([t, n]) => ({ t, n }))} value={tab} onChange={i => { setTab(i); setPre([]); setMsg(''); }} />
     {msg && <p className="text-sm text-indigo-700 dark:text-indigo-300">{msg}</p>}
     {tab === 0 && <FriendsTab fr={fr} me={me} act={act} challenge={id => { setPre([id]); setTab(1); setMsg(''); }} />}
     {tab === 1 && <ChallengesTab fr={fr} books={books} sessions={sessions} uid={uid} act={act} pre={pre} />}

@@ -7,7 +7,7 @@ import type { Book } from './lib/stats';
 // Buchsuche über Open Library (kostenlos, ohne Konto und ohne API-Schlüssel).
 type Hit = { title: string; author_name?: string[]; first_publish_year?: number; number_of_pages_median?: number; isbn?: string[]; cover_i?: number; subject?: string[] };
 
-export function BookSearch({ books, uid }: { books: Book[]; uid: string }) {
+export function BookSearch({ books, uid, bare }: { books: Book[]; uid: string; bare?: boolean }) {
   const [q, setQ] = useState(''), [hits, setHits] = useState<Hit[] | null>(null), [busy, setBusy] = useState(false), [msg, setMsg] = useState('');
   const search = async () => {
     const s = q.trim(); if (!s) return;
@@ -27,7 +27,7 @@ export function BookSearch({ books, uid }: { books: Book[]; uid: string }) {
     void save('books', { id: crypto.randomUUID(), user_id: uid, title: h.title.slice(0, 300), author, genre: h.subject?.[0]?.slice(0, 60) ?? null, isbn, cover_url: h.cover_i ? `https://covers.openlibrary.org/b/id/${h.cover_i}-M.jpg` : null, total_pages: h.number_of_pages_median ?? 0, current_page: 0, publication_year: h.first_publish_year ?? null, status: 'wishlist', rating: null });
     setMsg(`„${h.title}“ wurde zur Leseliste hinzugefügt. Seitenzahl und Genre kannst du über „Bearbeiten“ anpassen.`);
   };
-  return <div className={card + ' space-y-3'}><h3 className="flex items-center gap-2 font-medium"><Search className="h-4 w-4 text-indigo-500" />Buch online suchen</h3>
+  return <div className={(bare ? '' : card) + ' space-y-3'}>{!bare && <h3 className="flex items-center gap-2 font-medium"><Search className="h-4 w-4 text-indigo-500" />Buch online suchen</h3>}
     <div className="flex gap-2"><input className={inp + ' min-w-0 flex-1'} placeholder="ISBN oder Titel/Autor" value={q} onChange={e => setQ(e.target.value)} onKeyDown={e => e.key === 'Enter' && void search()} /><button className={btn} disabled={busy} onClick={() => void search()}>{busy ? 'Suche…' : 'Suchen'}</button></div>
     {msg && <p className="text-sm text-amber-700 dark:text-amber-300">{msg}</p>}
     {hits && hits.length === 0 && <p className="text-sm text-zinc-500">Keine Treffer gefunden.</p>}

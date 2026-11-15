@@ -1,5 +1,5 @@
 import { AlertTriangle, BarChart3, BookOpen, Cloud, CloudOff, FileText, LayoutDashboard, LogOut, Menu, Moon, RefreshCw, Settings as SettingsIcon, Sparkles, Sun, Target, Timer, Trophy, Users, type LucideIcon } from 'lucide-react';
-import { Empty, Skeleton, btn, card, inp } from './ui';
+import { Empty, Skeleton, SubTabs, btn, card, inp } from './ui';
 import { useEffect, useMemo, useState } from 'react';
 import type { Session as AuthSession } from '@supabase/supabase-js';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
@@ -9,7 +9,8 @@ import { GameCtx, PopupLayer, useGame } from './Game';
 import { protectedFrom, type GameEvent } from './lib/game';
 import { Goals, Heat, Settings, type Goal } from './Extra';
 import { Wrapped } from './Wrapped';
-import { More } from './More';
+import { More, MORE_TABS } from './More';
+import { Tour } from './Tour';
 import { Friends, useFriends } from './Friends';
 import { Library } from './Library';
 import { Reports } from './Reports';
@@ -23,6 +24,7 @@ import { computeStats, dayKey, insights, rangeFor, setProtectedDays, type Book, 
 import { TZ } from './lib/tz';
 const NAV = ['Dashboard', 'Meine Bücher', 'Lesesessions', 'Statistiken', 'Auswertungen', 'Leseziele', 'Motivation', 'Reading Wrapped', 'Freunde', 'Einstellungen'];
 const STATUS_TXT: Record<SyncStatus, string> = { synced: 'Synchronisiert', syncing: 'Synchronisierung läuft', offline: 'Offline', failed: 'Synchronisierung fehlgeschlagen' };
+const ghost = 'inline-flex items-center justify-center rounded-xl border border-zinc-300 px-4 py-2 text-sm font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800';
 const fmtMin = (m: number) => `${Math.floor(m / 60)} h ${Math.round(m % 60)} min`;
 
 function useLive() {
@@ -53,7 +55,7 @@ function Auth() {
     <button className="text-sm text-indigo-600 underline dark:text-indigo-300" onClick={() => run('reset')}>Passwort zurücksetzen</button>{msg && <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-800 dark:bg-amber-500/10 dark:text-amber-300">{msg}</p>}</div></div>;
 }
 
-function Stat({ l, v }: { l: string; v: string | number }) { return <div className={card + ' !p-4'}><div className="text-xs font-medium uppercase tracking-wide text-zinc-500">{l}</div><div className="mt-1 text-2xl font-semibold tabular-nums tracking-tight md:text-3xl">{v}</div></div>; }
+function Stat({ l, v }: { l: string; v: string | number }) { return <div className={card + ' !p-3 sm:!p-4'}><div className="text-[11px] font-medium uppercase leading-tight tracking-wide text-zinc-500 sm:text-xs">{l}</div><div className="mt-1 break-words text-xl font-semibold tabular-nums tracking-tight sm:text-2xl md:text-3xl">{v}</div></div>; }
 
 function Dashboard({ books, sessions }: { books: Book[]; sessions: Session[] }) {
   const s = useMemo(() => computeStats(sessions, books, null, TZ), [sessions, books]);
@@ -90,18 +92,35 @@ function Sessions({ books, sessions, uid }: { books: Book[]; sessions: Session[]
     void save('books', { ...b, current_page: Math.max(b.current_page, f.end), status: b.status === 'wishlist' ? 'reading' : b.status, start_date: b.start_date ?? dayKey(start, TZ) }, b.updated_at);
     setF({ book: '', start: 0, end: 0, min: 0, note: '' }); setStarted(null);
   };
-  const bt = (id: string) => books.find(b => b.id === id)?.title ?? '(gelöschtes Buch)';
-  return <div className="space-y-4"><div className={card + ' space-y-3'}><div className="font-mono text-3xl">{new Date(ms).toISOString().slice(11, 19)}</div>
-    <div className="flex gap-2">{!tm && <button className={btn} onClick={() => persist({ start: new Date().toISOString(), acc: 0, run: Date.now() })}>Start</button>}
-      {tm?.run && <button className={btn} onClick={() => persist({ ...tm, acc: ms, run: null })}>Pause</button>}
-      {tm && !tm.run && <button className={btn} onClick={() => persist({ ...tm, run: Date.now() })}>Fortsetzen</button>}
-      {tm && <button className={btn} onClick={stop}>Stoppen</button>}</div>
-    <div className="flex flex-wrap gap-2"><select className={inp} value={f.book} onChange={e => pick(e.target.value)}><option value="">Buch wählen</option>{books.map(b => <option key={b.id} value={b.id}>{b.title}</option>)}</select>
-      <input className={inp + ' w-24'} type="number" min={0} value={f.start} onChange={e => setF({ ...f, start: +e.target.value })} aria-label="Startseite" /><input className={inp + ' w-24'} type="number" min={0} value={f.end} onChange={e => setF({ ...f, end: +e.target.value })} aria-label="Endseite" />
-      <input className={inp + ' w-24'} type="number" min={0} step="0.1" value={f.min} onChange={e => setF({ ...f, min: +e.target.value })} aria-label="Minuten" /><input className={inp} placeholder="Notiz" value={f.note} onChange={e => setF({ ...f, note: e.target.value })} />
-      <button className={btn} onClick={submit}>Session speichern</button></div>{err && <p className="text-sm text-red-600">{err}</p>}</div>
-    {[...sessions].sort((a, b) => (b.start_time ?? b.session_date).localeCompare(a.start_time ?? a.session_date)).slice(0, 100).map(s => <div key={s.id} className={card + ' text-sm'}>{ed === s.id ? <SessionEditor s={s} books={books} sessions={sessions} onClose={() => setEd(null)} /> : <div className="flex justify-between gap-2">
-      <span>{s.session_date} · {bt(s.book_id)} · S. {s.start_page}–{s.end_page} ({s.end_page - s.start_page} Seiten) · {Math.round(s.duration_minutes)} Min.</span><span className="flex gap-3"><button onClick={() => setEd(s.id)}>Bearbeiten</button><button className="text-red-600" onClick={() => confirm('Session löschen?') && void deleteSession(s, sessions, books)}>Löschen</button></span></div>}</div>)}</div>;
+  const bt = (id: string) => books.find(b => b.id === id)?.title ?? '(gelöschtes Buch)', running = !!tm?.run, lbl = 'text-xs font-medium text-zinc-500', fdate = (k: string) => k.split('-').reverse().join('.');
+  const sel = (e: React.FocusEvent<HTMLInputElement>) => e.target.select();
+  return <div className="space-y-4"><div className={card + ' space-y-3'}>
+    <div className="flex items-center justify-between gap-3"><div><div className={lbl}>Lese-Timer</div><div className="font-mono text-4xl tabular-nums">{new Date(ms).toISOString().slice(11, 19)}</div></div>
+      <div className="flex gap-2">{!tm && <button className={btn} onClick={() => persist({ start: new Date().toISOString(), acc: 0, run: Date.now() })}>Start</button>}
+        {running && tm && <button className={btn} onClick={() => persist({ ...tm, acc: ms, run: null })}>Pause</button>}
+        {tm && !running && <button className={btn} onClick={() => persist({ ...tm, run: Date.now() })}>Fortsetzen</button>}
+        {tm && <button className={ghost} onClick={stop}>Stoppen</button>}</div></div>
+    {started && <p className="text-sm text-indigo-700 dark:text-indigo-300">Timer gestoppt: {f.min} Min. wurden unten übernommen. Wähle noch das Buch und die Seiten und speichere die Session.</p>}</div>
+    <div className={card + ' space-y-3'}><h3 className="font-medium">Session eintragen</h3>
+      {books.length === 0 && <p className="text-sm text-amber-700 dark:text-amber-300">Du hast noch kein Buch. Lege zuerst unter „Bücher“ eines an.</p>}
+      <label className="block"><span className={lbl}>Buch</span><select className={inp + ' mt-1 w-full'} value={f.book} onChange={e => pick(e.target.value)}><option value="">Buch wählen</option>{books.map(b => <option key={b.id} value={b.id}>{b.title}</option>)}</select></label>
+      <div className="grid grid-cols-3 gap-2">
+        <label className="block"><span className={lbl}>Startseite</span><input className={inp + ' mt-1 w-full'} type="number" min={0} inputMode="numeric" value={f.start} onFocus={sel} onChange={e => setF({ ...f, start: +e.target.value })} /></label>
+        <label className="block"><span className={lbl}>Endseite</span><input className={inp + ' mt-1 w-full'} type="number" min={0} inputMode="numeric" value={f.end} onFocus={sel} onChange={e => setF({ ...f, end: +e.target.value })} /></label>
+        <label className="block"><span className={lbl}>Minuten</span><input className={inp + ' mt-1 w-full'} type="number" min={0} step="0.1" inputMode="decimal" value={f.min} onFocus={sel} onChange={e => setF({ ...f, min: +e.target.value })} /></label></div>
+      <label className="block"><span className={lbl}>Notiz (optional)</span><input className={inp + ' mt-1 w-full'} value={f.note} onChange={e => setF({ ...f, note: e.target.value })} /></label>
+      {err && <p className="text-sm text-red-600">{err}</p>}<button className={btn + ' w-full sm:w-auto'} onClick={submit}>Session speichern</button></div>
+    {sessions.length > 0 && <h3 className="pt-1 font-medium">Letzte Sessions</h3>}
+    {[...sessions].sort((a, b) => (b.start_time ?? b.session_date).localeCompare(a.start_time ?? a.session_date)).slice(0, 100).map(s => <div key={s.id} className={card + ' !p-3 text-sm'}>{ed === s.id ? <SessionEditor s={s} books={books} sessions={sessions} onClose={() => setEd(null)} /> : <div className="flex items-start justify-between gap-3">
+      <div className="min-w-0"><div className="truncate font-medium">{bt(s.book_id)}</div><div className="text-zinc-500">{fdate(s.session_date)} · S. {s.start_page}–{s.end_page} · {s.end_page - s.start_page} Seiten · {Math.round(s.duration_minutes)} Min.</div></div>
+      <div className="flex shrink-0 gap-1"><button onClick={() => setEd(s.id)}>Bearbeiten</button><button className="text-red-600" onClick={() => confirm('Session löschen?') && void deleteSession(s, sessions, books)}>Löschen</button></div></div>}</div>)}</div>;
+}
+
+// Statistik-Seite: Zeitraum, Heatmap und die weiteren Auswertungen als Reiter statt als eine lange Seite.
+function StatsPage({ books, sessions }: { books: Book[]; sessions: Session[] }) {
+  const [t, setT] = useState(0);
+  return <div className="space-y-4"><SubTabs tabs={['Zeitraum', 'Heatmap', ...MORE_TABS].map(x => ({ t: x }))} value={t} onChange={setT} />
+    {t === 0 && <Statistics books={books} sessions={sessions} />}{t === 1 && <Heat books={books} sessions={sessions} />}{t >= 2 && <More books={books} sessions={sessions} tab={t - 2} />}</div>;
 }
 
 function Statistics({ books, sessions }: { books: Book[]; sessions: Session[] }) {
@@ -126,39 +145,48 @@ const SYNC: Record<SyncStatus, { Icon: LucideIcon; cls: string }> = {
 };
 
 export default function App() {
-  const [auth, setAuth] = useState<AuthSession | null | undefined>(undefined), [tab, setTab] = useState(0), [more, setMore] = useState(false), [dark, setDark] = useState(localStorage.getItem('rt-theme') ? localStorage.getItem('rt-theme') === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches);
+  const [auth, setAuth] = useState<AuthSession | null | undefined>(undefined), [tab, setTab] = useState(0), [more, setMore] = useState(false), [tour, setTour] = useState(false), [dark, setDark] = useState(localStorage.getItem('rt-theme') ? localStorage.getItem('rt-theme') === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches);
   const { books, sessions, goals, events, status, conflicts, ready, gameOk, gstat } = useLive();
   useReminder(sessions, goals);
   const game = useGame({ uid: auth?.user.id ?? null, books, sessions, events, ready, gameOk, gstat });
   const fr = useFriends({ uid: auth?.user.id ?? null, books, sessions, ready, xp: game.xp, level: game.lvl.level, title: game.lvl.title });
   useEffect(() => { supabase.auth.getSession().then(r => setAuth(r.data.session)); const { data } = supabase.auth.onAuthStateChange((_e, s) => { setAuth(s); if (s) void sync(); }); return () => data.subscription.unsubscribe(); }, []);
   useEffect(() => { document.documentElement.classList.toggle('dark', dark); }, [dark]);
+  useEffect(() => { const h = () => setTour(true); window.addEventListener('rt-tour', h); return () => window.removeEventListener('rt-tour', h); }, []);
+  // Einstiegstour: einmalig für neue Nutzer*innen (erst nach dem ersten Abgleich, damit Bestandskonten auf neuen Geräten sie nicht sehen)
+  useEffect(() => { if (!auth || !ready || !(gameOk || gstat === 'missing') || books.length || sessions.length) return; if (!localStorage.getItem(`rt-tour-${auth.user.id}`)) setTour(true); }, [auth?.user.id, ready, gameOk, gstat, books.length, sessions.length]);
   useEffect(() => { if (!auth) return; void supabase.from('profiles').select('timezone,preferred_theme').eq('id', auth.user.id).maybeSingle().then(({ data }) => { if (!data) return; if (data.preferred_theme) { localStorage.setItem('rt-theme', data.preferred_theme); setDark(data.preferred_theme === 'dark'); } if (data.timezone && data.timezone !== TZ) { localStorage.setItem('rt-tz', data.timezone); location.reload(); } }); }, [auth?.user.id]);
   if (auth === undefined) return <div className="p-6"><Skeleton /></div>;
   if (!auth) return <Auth />;
   const uid = auth.user.id, go = (i: number) => { setTab(i); setMore(false); window.scrollTo({ top: 0 }); };
   const toggleTheme = () => { const n = !dark; setDark(n); localStorage.setItem('rt-theme', n ? 'dark' : 'light'); void supabase.from('profiles').update({ preferred_theme: n ? 'dark' : 'light' }).eq('id', uid); };
-  const { Icon: SIcon, cls } = SYNC[status];
-  const pill = <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${cls}`} title="Synchronisierungsstatus"><SIcon className={`h-3.5 w-3.5 ${status === 'syncing' ? 'animate-spin' : ''}`} />{STATUS_TXT[status]}</span>;
+  const { Icon: SIcon, cls } = SYNC[status], spin = status === 'syncing' ? 'animate-spin' : '';
+  const pillFull = <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${cls}`} title="Synchronisierungsstatus"><SIcon className={`h-3.5 w-3.5 ${spin}`} />{STATUS_TXT[status]}</span>;
+  const pillMini = <span className={`inline-flex h-8 w-8 items-center justify-center rounded-full ${cls}`} title={STATUS_TXT[status]} role="img" aria-label={STATUS_TXT[status]}><SIcon className={`h-4 w-4 ${spin}`} /></span>;
   const confBtn = conflicts > 0 && <button className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-800 dark:bg-amber-500/15 dark:text-amber-300" onClick={() => go(9)}>{conflicts} Konflikt(e)</button>;
   const logo = <div className="flex items-center gap-2.5"><div className="rounded-xl bg-indigo-600 p-2 text-white shadow-md shadow-indigo-600/30"><BookOpen className="h-4 w-4" /></div><span className="font-semibold tracking-tight">Reading Tracker</span></div>;
   const side = (i: number) => { const I = NAVI[i]; return <button key={i} onClick={() => go(i)} className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium transition ${tab === i ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-200' : 'text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800/70'}`}><I className="h-[18px] w-[18px]" />{NAV[i]}{i === 8 && fr.pending > 0 && <span className="ml-auto rounded-full bg-indigo-600 px-2 py-0.5 text-[11px] font-semibold text-white">{fr.pending}</span>}</button>; };
-  const bot = (i: number, label: string) => { const I = NAVI[i]; return <button key={i} onClick={() => go(i)} className={`flex flex-col items-center gap-0.5 py-2 text-[11px] font-medium ${tab === i ? 'text-indigo-600 dark:text-indigo-300' : 'text-zinc-500'}`}><I className="h-5 w-5" />{label}</button>; };
+  const bot = (i: number, label: string) => { const I = NAVI[i]; return <button key={i} onClick={() => go(i)} aria-current={tab === i ? 'page' : undefined} className={`flex flex-col items-center gap-0.5 pb-1.5 pt-2 text-[11px] font-medium ${tab === i ? 'text-indigo-600 dark:text-indigo-300' : 'text-zinc-500'}`}><span className={`flex h-7 w-12 items-center justify-center rounded-full transition ${tab === i ? 'bg-indigo-100 dark:bg-indigo-500/20' : ''}`}><I className="h-5 w-5" /></span>{label}</button>; };
+  const tile = (i: number) => { const I = NAVI[i]; return <button key={i} onClick={() => go(i)} className={`relative flex flex-col items-center gap-1.5 rounded-2xl px-2 py-3 text-center text-xs font-medium ${tab === i ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-200' : 'bg-zinc-50 text-zinc-700 dark:bg-zinc-800/60 dark:text-zinc-300'}`}><I className="h-6 w-6" />{NAV[i]}{i === 8 && fr.pending > 0 && <span className="absolute right-2 top-2 rounded-full bg-indigo-600 px-1.5 text-[10px] font-semibold text-white">{fr.pending}</span>}</button>; };
   const themeBtn = <button onClick={toggleTheme} className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-zinc-600 transition hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800/70">{dark ? <Sun className="h-[18px] w-[18px]" /> : <Moon className="h-[18px] w-[18px]" />}{dark ? 'Heller Modus' : 'Dunkler Modus'}</button>;
   const outBtn = <button onClick={() => supabase.auth.signOut()} className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-zinc-600 transition hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800/70"><LogOut className="h-[18px] w-[18px]" />Abmelden</button>;
   return <GameCtx.Provider value={game}><div className="min-h-screen md:pl-64">
     <aside className="fixed inset-y-0 left-0 z-20 hidden w-64 flex-col gap-1 border-r border-zinc-200 bg-white/80 p-4 backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/80 md:flex"><div className="mb-5 px-1 pt-1">{logo}</div>
-      {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(side)}<div className="mt-auto flex flex-col gap-1"><div className="flex flex-wrap items-center gap-2 px-1 pb-2">{pill}{confBtn}</div>{themeBtn}{outBtn}</div></aside>
-    <header className="sticky top-0 z-20 flex items-center justify-between gap-2 border-b border-zinc-200 bg-white/85 px-4 py-3 backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/85 md:hidden" style={{ paddingTop: 'max(.75rem, env(safe-area-inset-top))' }}>{logo}<div className="flex items-center gap-2">{confBtn}{pill}</div></header>
-    <main className="mx-auto max-w-6xl px-4 pb-28 pt-5 md:px-8 md:pb-12 md:pt-8"><h1 className="mb-5 text-2xl font-semibold tracking-tight md:text-3xl">{NAV[tab]}</h1>
+      {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(side)}<div className="mt-auto flex flex-col gap-1"><div className="flex flex-wrap items-center gap-2 px-1 pb-2">{pillFull}{confBtn}</div>{themeBtn}{outBtn}</div></aside>
+    <header className="sticky top-0 z-20 flex items-center justify-between gap-2 border-b border-zinc-200 bg-white/85 px-4 py-2.5 backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/85 md:hidden" style={{ paddingTop: 'max(.625rem, env(safe-area-inset-top))' }}>
+      <div className="flex min-w-0 items-center gap-2.5"><div className="shrink-0 rounded-xl bg-indigo-600 p-1.5 text-white shadow-md shadow-indigo-600/30"><BookOpen className="h-4 w-4" /></div><h1 className="truncate font-semibold tracking-tight">{NAV[tab]}</h1></div>
+      <div className="flex shrink-0 items-center gap-2">{confBtn}{pillMini}</div></header>
+    <main className="mx-auto max-w-6xl px-4 pb-28 pt-4 md:px-8 md:pb-12 md:pt-8"><h1 className="mb-5 hidden text-3xl font-semibold tracking-tight md:block">{NAV[tab]}</h1>
       <div key={tab} className="rt-page">{!ready ? <Skeleton /> : <>
-        {tab === 0 && <Dash books={books} sessions={sessions} goals={goals} onWrapped={() => go(7)} />}{tab === 1 && <Library books={books} sessions={sessions} uid={uid} />}{tab === 2 && <Sessions books={books} sessions={sessions} uid={uid} />}
-        {tab === 3 && <><Statistics books={books} sessions={sessions} /><Heat books={books} sessions={sessions} /><More books={books} sessions={sessions} /></>}
+        {tab === 0 && <Dash books={books} sessions={sessions} goals={goals} onWrapped={() => go(7)} onSession={() => go(2)} />}{tab === 1 && <Library books={books} sessions={sessions} uid={uid} />}{tab === 2 && <Sessions books={books} sessions={sessions} uid={uid} />}
+        {tab === 3 && <StatsPage books={books} sessions={sessions} />}
         {tab === 4 && <Reports books={books} sessions={sessions} />}{tab === 5 && <Goals goals={goals} books={books} sessions={sessions} uid={uid} />}{tab === 6 && <Motivation books={books} sessions={sessions} goals={goals} />}{tab === 7 && <Wrapped books={books} sessions={sessions} />}
         {tab === 8 && <Friends fr={fr} books={books} sessions={sessions} uid={uid} />}
         {tab === 9 && <><Conflicts /><Settings books={books} sessions={sessions} goals={goals} events={events} uid={uid} /></>}</>}</div></main>
-    {more && <div className="fixed inset-0 z-30 md:hidden" onClick={() => setMore(false)}><div className="absolute inset-x-3 bottom-20 flex flex-col gap-1 rounded-2xl border border-zinc-200 bg-white p-2 shadow-xl dark:border-zinc-800 dark:bg-zinc-900" onClick={e => e.stopPropagation()}>{[4, 5, 6, 7, 8, 9].map(side)}{themeBtn}{outBtn}</div></div>}
+    {more && <div className="fixed inset-0 z-30 bg-black/30 md:hidden" onClick={() => setMore(false)}><div className="rt-page absolute inset-x-3 rounded-3xl border border-zinc-200 bg-white p-3 shadow-xl dark:border-zinc-800 dark:bg-zinc-900" style={{ bottom: 'calc(4.25rem + env(safe-area-inset-bottom))' }} onClick={e => e.stopPropagation()}>
+      <div className="grid grid-cols-3 gap-2">{[4, 5, 6, 7, 8, 9].map(tile)}</div><div className="mt-2 grid grid-cols-2 gap-1 border-t border-zinc-100 pt-2 dark:border-zinc-800">{themeBtn}{outBtn}</div></div></div>}
     <nav className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-zinc-200 bg-white/90 backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/90 md:hidden" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
       {bot(0, 'Start')}{bot(1, 'Bücher')}{bot(2, 'Sessions')}{bot(3, 'Statistik')}
-      <button onClick={() => setMore(!more)} className={`relative flex flex-col items-center gap-0.5 py-2 text-[11px] font-medium ${tab >= 4 || more ? 'text-indigo-600 dark:text-indigo-300' : 'text-zinc-500'}`}><Menu className="h-5 w-5" />Mehr{fr.pending > 0 && <span className="absolute right-5 top-1.5 h-2.5 w-2.5 rounded-full bg-amber-400" />}</button></nav><PopupLayer /></div></GameCtx.Provider>;
+      <button onClick={() => setMore(!more)} aria-expanded={more} className={`relative flex flex-col items-center gap-0.5 pb-1.5 pt-2 text-[11px] font-medium ${tab >= 4 || more ? 'text-indigo-600 dark:text-indigo-300' : 'text-zinc-500'}`}><span className={`flex h-7 w-12 items-center justify-center rounded-full transition ${tab >= 4 || more ? 'bg-indigo-100 dark:bg-indigo-500/20' : ''}`}><Menu className="h-5 w-5" /></span>Mehr{fr.pending > 0 && <span className="absolute right-4 top-1.5 h-2.5 w-2.5 rounded-full bg-amber-400" />}</button></nav>
+    {tour && <Tour onClose={t => { localStorage.setItem(`rt-tour-${uid}`, '1'); setTour(false); if (t !== undefined) go(t); }} />}<PopupLayer /></div></GameCtx.Provider>;
 }

@@ -18,27 +18,29 @@ export function DayRing({ p, size = 160 }: { p: Personal; size?: number }) {
       <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={done ? '#6ee7b7' : '#fff'} strokeWidth={stroke} strokeLinecap="round" strokeDasharray={c} strokeDashoffset={c * (1 - k)} style={{ transition: 'stroke-dashoffset .8s cubic-bezier(.2,.8,.2,1)' }} /></svg>
     <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
       {done ? <Check className="mb-0.5 h-5 w-5" /> : null}
-      <div className="text-4xl font-extrabold leading-none tabular-nums">{p.today.minutes}</div>
+      <div className={`font-extrabold leading-none tabular-nums ${size < 130 ? 'text-3xl' : 'text-4xl'}`}>{p.today.minutes}</div>
       <div className="mt-1 text-xs opacity-80">von {p.goalMin} Min.</div>
       <div className="mt-0.5 text-[11px] opacity-70">{p.today.pages} Seiten</div></div></div>;
 }
 
 export function DayHero({ p }: { p: Personal }) {
   const chip = CHIP[p.state];
-  return <section className="rt-pop relative overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-600 via-violet-600 to-fuchsia-600 p-5 text-white shadow-lg md:p-7">
+  return <section className="rt-pop relative overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-600 via-violet-600 to-fuchsia-600 p-4 text-white shadow-lg md:p-7">
     <div className="pointer-events-none absolute -right-12 -top-12 h-48 w-48 rounded-full bg-white/10" /><div className="pointer-events-none absolute -bottom-16 left-1/3 h-40 w-40 rounded-full bg-black/10" />
-    <div className="relative flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+    <div className="relative flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
       <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-3"><Flame className={`h-10 w-10 shrink-0 ${p.streak > 0 && !p.readToday && p.state !== 'paused' ? 'animate-pulse' : ''}`} />
-          <div><div className="text-xs font-medium uppercase tracking-[.2em] opacity-80">Aktueller Streak</div>
-            <div className="flex items-baseline gap-2"><span className="text-5xl font-extrabold leading-none tabular-nums md:text-6xl">{p.streak}</span><span className="text-xl font-semibold md:text-2xl">Tag{p.streak === 1 ? '' : 'e'}</span></div></div>
-          {chip && <span className={`ml-auto rounded-full px-3 py-1 text-xs font-semibold md:ml-2 ${chip.c}`}>{chip.t}</span>}</div>
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-3"><Flame className={`h-9 w-9 shrink-0 md:h-10 md:w-10 ${p.streak > 0 && !p.readToday && p.state !== 'paused' ? 'animate-pulse' : ''}`} />
+            <div className="min-w-0"><div className="text-xs font-medium opacity-80">Aktueller Streak</div>
+              <div className="flex items-baseline gap-2"><span className="text-5xl font-extrabold leading-none tabular-nums md:text-6xl">{p.streak}</span><span className="text-lg font-semibold md:text-2xl">Tag{p.streak === 1 ? '' : 'e'}</span></div></div></div>
+          <div className="shrink-0 md:hidden"><DayRing p={p} size={104} /></div></div>
+        {chip && <span className={`mt-3 inline-block rounded-full px-3 py-1 text-xs font-semibold ${chip.c}`}>{chip.t}</span>}
         <p className="mt-2 text-sm opacity-90">{p.streakNote}</p>
         <div className="mt-3 flex gap-1.5" aria-label="Lesetage dieser Woche">{p.week.map(w => <div key={w.day} className="flex flex-col items-center gap-1" title={`${w.day}${w.read ? ': gelesen' : w.shielded ? ': geschützt' : ''}`}>
           <div className={`flex h-7 w-7 items-center justify-center rounded-full text-[10px] font-semibold ${w.read ? 'bg-white text-indigo-700' : w.shielded ? 'bg-sky-300 text-sky-950' : w.future ? 'bg-white/10 opacity-50' : 'bg-white/20'} ${w.today ? 'ring-2 ring-white ring-offset-2 ring-offset-violet-600' : ''}`}>{w.read ? <Check className="h-3.5 w-3.5" /> : w.shielded ? <Shield className="h-3.5 w-3.5" /> : ''}</div>
           <span className="text-[10px] opacity-80">{w.label}</span></div>)}</div>
         <div className="mt-4 text-lg font-semibold md:text-xl">{p.headline}</div>
-        <p className="mt-1 opacity-95">{p.text}</p>
-        <p className="mt-2 text-xs opacity-70">{p.goalNote}</p></div>
-      <div className="flex justify-center md:justify-end"><DayRing p={p} /></div></div></section>;
+        <p className="mt-1 text-sm opacity-95 md:text-base">{p.text}</p>
+        <p className="mt-2 hidden text-xs opacity-70 sm:block">{p.goalNote}</p></div>
+      <div className="hidden justify-end md:flex"><DayRing p={p} /></div></div></section>;
 }

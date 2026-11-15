@@ -1,4 +1,5 @@
-import { btn, card, inp } from './ui';
+import { SubTabs, btn, card, inp } from './ui';
+const lb = 'block w-full text-sm sm:w-auto', fi = ' mt-1 block w-full sm:ml-2 sm:mt-0 sm:inline-block sm:w-auto';
 import { Target } from 'lucide-react';
 import { Empty } from './ui';
 import { useEffect, useMemo, useState } from 'react';
@@ -59,7 +60,7 @@ export function Heat({ sessions, books }: { sessions: Session[]; books: Book[] }
 }
 
 export function Settings({ books, sessions, goals, events, uid }: { books: Book[]; sessions: Session[]; goals: Goal[]; events: GameEvent[]; uid: string }) {
-  const [msg, setMsg] = useState(''), [name, setName] = useState(''), [tz, setTz] = useState(TZ), [theme, setTheme] = useState(localStorage.getItem('rt-theme') ?? 'light'), [pw, setPw] = useState('');
+  const [st, setSt] = useState(0), [msg, setMsg] = useState(''), [name, setName] = useState(''), [tz, setTz] = useState(TZ), [theme, setTheme] = useState(localStorage.getItem('rt-theme') ?? 'light'), [pw, setPw] = useState('');
   useEffect(() => { void supabase.from('profiles').select('display_name').eq('id', uid).maybeSingle().then(({ data }) => setName(data?.display_name ?? '')); }, [uid]);
   const zones = [...new Set([TZ, ...(((Intl as any).supportedValuesOf?.('timeZone') as string[] | undefined) ?? ['Europe/Berlin'])])];
   const saveProfile = async () => {
@@ -98,25 +99,26 @@ export function Settings({ books, sessions, goals, events, uid }: { books: Book[
   const wipe = async () => { if (!confirm('ALLE Bücher, Sessions und Ziele unwiderruflich löschen?')) return; for (const b of books) await remove('books', b.id); for (const s of sessions) await remove('reading_sessions', s.id); for (const g of goals) await remove('reading_goals', g.id); if (events.length) await removeMany('game_events', events.map(e => e.id)); setMsg('Alle Daten gelöscht.'); };
   const resetGame = async () => { if (!events.length) return setMsg('Es gibt noch keinen Spielstand.'); if (!confirm('Spielstand zurücksetzen (Abzeichen-Daten, Schilde, Pausen, Belohnungen)? Bücher und Sessions bleiben erhalten; Abzeichen und Level werden daraus neu aufgebaut.')) return; await removeMany('game_events', events.map(e => e.id)); setMsg('Spielstand zurückgesetzt. Er wird aus deinen Daten neu aufgebaut.'); };
   const del = async () => { if (!confirm('Konto UND alle Daten endgültig löschen?')) return; const { error } = await supabase.rpc('delete_my_account'); if (error) return setMsg(error.message); await supabase.auth.signOut(); indexedDB.deleteDatabase('reading-tracker'); location.reload(); };
-  return <div className="space-y-3"><div className={card + ' space-y-2'}><h3 className="font-medium">Daten</h3><div className="flex flex-wrap gap-2">
+  return <div className="space-y-3"><SubTabs tabs={[{ t: 'Profil' }, { t: 'Anzeige' }, { t: 'Daten' }, { t: 'Konto' }]} value={st} onChange={setSt} />{st === 2 && <div className={card + ' space-y-2'}><h3 className="font-medium">Daten</h3><div className="flex flex-wrap gap-2">
     <button className={btn} onClick={() => dl(`reading-tracker-backup-${day}.json`, JSON.stringify({ version: 1, exported_at: new Date().toISOString(), settings: { theme: document.documentElement.classList.contains('dark') ? 'dark' : 'light', timezone: TZ }, books, reading_sessions: sessions, reading_goals: goals }, null, 2), 'application/json')}>JSON-Export</button>
     <button className={btn} onClick={() => dl(`buecher-${day}.csv`, csv(books, ['id', 'title', 'author', 'genre', 'total_pages', 'current_page', 'status', 'rating', 'start_date', 'finish_date']), 'text/csv')}>CSV Bücher</button>
     <button className={btn} onClick={() => dl(`sessions-${day}.csv`, csv(sessions, ['id', 'book_id', 'session_date', 'start_time', 'end_time', 'duration_minutes', 'start_page', 'end_page', 'notes']), 'text/csv')}>CSV Sessions</button>
     <button className={btn} onClick={() => dl(`statistik-tageswerte-${day}.csv`, csv(computeStats(sessions, books, null, TZ).daily, ['day', 'pages', 'minutes', 'sessions']), 'text/csv')}>CSV Statistik</button>
     <label className={btn + ' cursor-pointer'}>JSON-Import<input type="file" accept=".json" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) void imp(f); e.target.value = ''; }} /></label></div>
-    <p className="text-xs text-zinc-500">Import überschreibt nie vorhandene Datensätze (gleiche IDs werden übersprungen) und prüft jeden Eintrag.</p></div>
-    <div className={card + ' space-y-3'}><h3 className="font-medium">Profil</h3><div className="flex flex-wrap items-end gap-3 text-sm">
-      <label>Anzeigename<input className={inp + ' ml-2'} value={name} onChange={e => setName(e.target.value)} /></label>
-      <label>Zeitzone<select className={inp + ' ml-2'} value={tz} onChange={e => setTz(e.target.value)}>{zones.map(z => <option key={z}>{z}</option>)}</select></label>
-      <label>Design<select className={inp + ' ml-2'} value={theme} onChange={e => setTheme(e.target.value)}><option value="light">Hell</option><option value="dark">Dunkel</option></select></label>
-      <label>Sprache<select className={inp + ' ml-2'} disabled><option>Deutsch</option></select></label><button className={btn} onClick={() => void saveProfile()}>Profil speichern</button></div>
-    <div className="flex flex-wrap items-end gap-3 text-sm"><label>Neues Passwort<input className={inp + ' ml-2'} type="password" minLength={8} value={pw} onChange={e => setPw(e.target.value)} /></label><button className={btn} onClick={() => void changePw()}>Passwort ändern</button></div>
-    <p className="text-xs text-zinc-500">Name, Zeitzone und Design werden im Konto gespeichert und auf allen Geräten übernommen. Nach „Passwort zurücksetzen“ bist du über den E-Mail-Link angemeldet und kannst hier ein neues Passwort setzen.</p></div>
-    <div className={card + ' space-y-2'}><h3 className="font-medium">Anzeige</h3><div className="flex flex-wrap gap-4 text-sm"><label>Standard-Zeitraum<select className={inp + ' ml-2'} defaultValue={localStorage.getItem('rt-period') ?? '30'} onChange={e => localStorage.setItem('rt-period', e.target.value)}>{PERIODS.map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></label>
-    <label>Dashboard-Ansicht<select className={inp + ' ml-2'} defaultValue={localStorage.getItem('rt-view') ?? 'full'} onChange={e => localStorage.setItem('rt-view', e.target.value)}><option value="full">Ausführlich</option><option value="compact">Kompakt (ohne Diagramme)</option></select></label></div>
-    <p className="text-xs text-zinc-500">Gilt für dieses Gerät und wird beim nächsten Öffnen von Dashboard bzw. Statistik übernommen.</p></div>
-    <div className={card + ' space-y-2'}><h3 className="font-medium">Konto</h3><div className="flex flex-wrap gap-2"><button className={btn} onClick={() => void sync()}>Jetzt synchronisieren</button>
+    <p className="text-xs text-zinc-500">Import überschreibt nie vorhandene Datensätze (gleiche IDs werden übersprungen) und prüft jeden Eintrag.</p></div>}
+    {st === 0 && <div className={card + ' space-y-3'}><h3 className="font-medium">Profil</h3><div className="flex flex-wrap items-end gap-3 text-sm">
+      <label className={lb}>Anzeigename<input className={inp + fi} value={name} onChange={e => setName(e.target.value)} /></label>
+      <label className={lb}>Zeitzone<select className={inp + fi} value={tz} onChange={e => setTz(e.target.value)}>{zones.map(z => <option key={z}>{z}</option>)}</select></label>
+      <label className={lb}>Design<select className={inp + fi} value={theme} onChange={e => setTheme(e.target.value)}><option value="light">Hell</option><option value="dark">Dunkel</option></select></label>
+      <label className={lb}>Sprache<select className={inp + fi} disabled><option>Deutsch</option></select></label><button className={btn} onClick={() => void saveProfile()}>Profil speichern</button></div>
+    <div className="flex flex-wrap items-end gap-3 text-sm"><label className={lb}>Neues Passwort<input className={inp + fi} type="password" minLength={8} value={pw} onChange={e => setPw(e.target.value)} /></label><button className={btn} onClick={() => void changePw()}>Passwort ändern</button></div>
+    <p className="text-xs text-zinc-500">Name, Zeitzone und Design werden im Konto gespeichert und auf allen Geräten übernommen. Nach „Passwort zurücksetzen“ bist du über den E-Mail-Link angemeldet und kannst hier ein neues Passwort setzen.</p></div>}
+    {st === 1 && <div className={card + ' space-y-3'}><h3 className="font-medium">Anzeige</h3><div className="flex flex-wrap gap-4 text-sm"><label className={lb}>Standard-Zeitraum<select className={inp + fi} defaultValue={localStorage.getItem('rt-period') ?? '30'} onChange={e => localStorage.setItem('rt-period', e.target.value)}>{PERIODS.map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></label>
+    <label className={lb}>Dashboard-Ansicht<select className={inp + fi} defaultValue={localStorage.getItem('rt-view') ?? 'full'} onChange={e => localStorage.setItem('rt-view', e.target.value)}><option value="full">Ausführlich</option><option value="compact">Kompakt (ohne Diagramme)</option></select></label></div>
+    <div><button className={btn} onClick={() => window.dispatchEvent(new Event('rt-tour'))}>Einführungstour ansehen</button></div>
+    <p className="text-xs text-zinc-500">Gilt für dieses Gerät und wird beim nächsten Öffnen von Dashboard bzw. Statistik übernommen.</p></div>}
+    {st === 3 && <div className={card + ' space-y-2'}><h3 className="font-medium">Konto</h3><div className="flex flex-wrap gap-2"><button className={btn} onClick={() => void sync()}>Jetzt synchronisieren</button>
       <button className={btn} onClick={() => void demo()}>Beispieldaten erzeugen</button><button className="rounded-lg border border-zinc-400 px-4 py-2" onClick={() => void undemo()}>Beispieldaten löschen</button>
-      <button className="rounded-lg border border-zinc-400 px-4 py-2" onClick={() => void resetGame()}>Spielstand zurücksetzen</button><button className="rounded-lg border border-red-600 px-4 py-2 text-red-600" onClick={wipe}>Alle Daten löschen</button><button className="rounded-lg bg-red-600 px-4 py-2 text-white" onClick={del}>Konto löschen</button></div></div>
+      <button className="rounded-lg border border-zinc-400 px-4 py-2" onClick={() => void resetGame()}>Spielstand zurücksetzen</button><button className="rounded-lg border border-red-600 px-4 py-2 text-red-600" onClick={wipe}>Alle Daten löschen</button><button className="rounded-lg bg-red-600 px-4 py-2 text-white" onClick={del}>Konto löschen</button></div></div>}
     {msg && <p className="text-sm text-amber-600">{msg}</p>}</div>;
 }

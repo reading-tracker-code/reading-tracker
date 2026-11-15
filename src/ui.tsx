@@ -14,3 +14,9 @@ export function Skeleton() {
   const b = 'animate-pulse rounded-2xl bg-zinc-200/70 dark:bg-zinc-800';
   return <div className="space-y-4"><div className="grid grid-cols-2 gap-3 md:grid-cols-4">{Array.from({ length: 8 }, (_, i) => <div key={i} className={b + ' h-24'} />)}</div><div className={b + ' h-56'} /><div className={b + ' h-56'} /></div>;
 }
+
+// Umschalter für Unterbereiche einer Seite: auf dem Handy seitlich scrollbar, damit nichts umbricht oder abgeschnitten wird.
+export function SubTabs({ tabs, value, onChange }: { tabs: { t: string; n?: number }[]; value: number; onChange: (i: number) => void }) {
+  return <div className="no-scrollbar -mx-4 overflow-x-auto px-4 md:mx-0 md:px-0"><div role="tablist" className="flex w-full min-w-max gap-1 rounded-2xl bg-zinc-100 p-1 dark:bg-zinc-900 md:inline-flex md:w-auto md:min-w-0">
+    {tabs.map((x, i) => <button key={x.t} role="tab" aria-selected={value === i} onClick={() => onChange(i)} className={`flex-1 shrink-0 whitespace-nowrap rounded-xl px-3.5 py-2 text-sm font-medium transition ${value === i ? 'bg-white text-indigo-700 shadow-sm dark:bg-zinc-800 dark:text-indigo-200' : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200'}`}>{x.t}{!!x.n && <span className="ml-1.5 rounded-full bg-amber-400 px-1.5 text-xs font-semibold text-amber-950">{x.n}</span>}</button>)}</div></div>;
+}

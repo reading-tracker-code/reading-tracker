@@ -1,4 +1,4 @@
-import { card, inp } from './ui';
+import { SubTabs, card, inp } from './ui';
 import { useMemo, useState } from 'react';
 import { Bar, BarChart, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { computeStats, dayKey, isValid, pagesOf, type Book, type Session } from './lib/stats';
@@ -74,9 +74,10 @@ function CalHist({ books, sessions }: { books: Book[]; sessions: Session[] }) {
       {hist.length === 0 && <p className="text-sm text-zinc-500">Keine Sessions gefunden.</p>}{hist.map(s => <div key={s.id} className="text-sm">{s.session_date} · {bt(s.book_id)} · {pagesOf(s)} Seiten · {Math.round(s.duration_minutes)} Min.{s.notes ? ` · ${s.notes}` : ''}</div>)}</div></div>;
 }
 
-export function More({ books, sessions }: { books: Book[]; sessions: Session[] }) {
-  const [t, setT] = useState(0), tabs = ['Bücher & Rekorde', 'Jahresvergleich', 'Kalender & Historie', 'Vergleiche'];
-  return <div className="mt-4 space-y-3"><div className="flex gap-1">{tabs.map((x, i) => <button key={x} onClick={() => setT(i)} className={`rounded-lg px-3 py-1.5 text-sm ${t === i ? 'bg-indigo-600 text-white' : 'hover:bg-zinc-200 dark:hover:bg-zinc-700'}`}>{x}</button>)}</div>
+export const MORE_TABS = ['Bücher & Rekorde', 'Jahresvergleich', 'Kalender & Historie', 'Vergleiche'];
+export function More({ books, sessions, tab }: { books: Book[]; sessions: Session[]; tab?: number }) {
+  const [t0, setT] = useState(0), t = tab ?? t0;
+  return <div className="mt-4 space-y-3">{tab === undefined && <SubTabs tabs={MORE_TABS.map(x => ({ t: x }))} value={t} onChange={setT} />}
     {t === 0 && <BooksRecords books={books} sessions={sessions} />}{t === 1 && <Years books={books} sessions={sessions} />}{t === 2 && <CalHist books={books} sessions={sessions} />}{t === 3 && <Compare books={books} sessions={sessions} />}</div>;
 }
 

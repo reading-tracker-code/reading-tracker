@@ -38,3 +38,8 @@ button:not([class]):hover { background: rgb(113 113 122 / .12); } button[class="
 @keyframes rtwobble { 0%, 100% { transform: rotate(0); } 20% { transform: rotate(-10deg) scale(1.05); } 40% { transform: rotate(9deg) scale(1.05); } 60% { transform: rotate(-6deg); } 80% { transform: rotate(4deg); } }
 .rt-wobble { animation: rtwobble 1.2s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { .rt-conf { display: none; } }
+
+/* Mobile Übersicht: seitlich scrollbare Reiter ohne Scrollbalken, kein Antippen-Flackern, ruhigere Abstände */
+.no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; } .no-scrollbar::-webkit-scrollbar { display: none; }
+html { -webkit-tap-highlight-color: transparent; }
+@media (max-width: 767px) { .rt-page { animation-duration: .18s; } }

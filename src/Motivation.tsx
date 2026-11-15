@@ -1,6 +1,6 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { BookOpen, CalendarClock, Flame, Layers, Lightbulb, Trophy, type LucideIcon } from 'lucide-react';
-import { card } from './ui';
+import { SubTabs, card } from './ui';
 import { Gamification } from './Challenges';
 import { GamePanels } from './Game';
 import { PushCard, ReminderCard, pushAvailable } from './notify';
@@ -16,6 +16,7 @@ const Bar = ({ pct, ok }: { pct: number; ok?: boolean }) => <div className="mt-1
 const Sec = ({ icon: I, title, children }: { icon: LucideIcon; title: string; children: React.ReactNode }) => <section className="space-y-3"><h2 className="flex items-center gap-2 text-lg font-semibold tracking-tight"><I className="h-5 w-5 text-indigo-500" />{title}</h2>{children}</section>;
 
 export function Motivation({ books, sessions, goals }: { books: Book[]; sessions: Session[]; goals: Goal[] }) {
+  const [tab, setTab] = useState(0);
   const d = useMemo(() => {
     const today = dayKey(new Date(), TZ), t = dn(today), ws = iso(t - ((new Date(t * 864e5).getUTCDay() + 6) % 7)), c = (r: { from: string; to: string } | null) => computeStats(sessions, books, r, TZ);
     return { today, t, all: c(null), m30: c(rangeFor('30', TZ)), now: c({ from: today, to: today }), week: c({ from: ws, to: today }), month: c(rangeFor('month', TZ)) };
@@ -53,13 +54,11 @@ export function Motivation({ books, sessions, goals }: { books: Book[]; sessions
   const stalled = books.filter(b => (b.status === 'reading' || b.status === 'paused') && last.has(b.id) && d.t - dn(last.get(b.id)!) >= 14);
   const bk = d.all.buckets, bt = Object.entries(bk).sort((a, b) => b[1] - a[1])[0], tot = Object.values(bk).reduce((a, b) => a + b, 0);
 
-  return <div className="space-y-8">
+  return <div className="space-y-5"><SubTabs tabs={[{ t: 'Überblick' }, { t: 'Challenges' }, { t: 'Abzeichen' }, { t: 'Streak & Erinnerung' }]} value={tab} onChange={setTab} /><div className="space-y-8">{tab === 0 && <>
     <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-600 to-violet-600 p-6 text-white shadow-lg md:p-8"><div className="pointer-events-none absolute -right-10 -top-10 h-48 w-48 rounded-full bg-white/10" />
       <div className="relative flex items-center gap-4"><Flame className="h-10 w-10 shrink-0" /><div><div className="text-sm uppercase tracking-widest opacity-80">Dein Impuls für heute</div><div className="mt-1 text-lg font-medium md:text-xl">{impulse}</div></div></div></div>
 
-    {pushAvailable ? <PushCard /> : <ReminderCard />}
-
-    <GamePanels />
+    <GamePanels part="level" />
 
     <Sec icon={CalendarClock} title="Prognosen"><div className="grid gap-3 md:grid-cols-2">
       <div className={card}><h3 className="mb-2 font-medium">Wann bist du fertig?</h3>{reading.length === 0 ? <p className="text-sm text-zinc-500">Kein angefangenes Buch mit bekannter Seitenzahl.</p> : !enough || pace <= 0 ? <p className="text-sm text-zinc-500">Noch zu wenig Daten (mind. 5 Lesetage in den letzten 30 Tagen).</p> :
@@ -68,12 +67,13 @@ export function Motivation({ books, sessions, goals }: { books: Book[]; sessions
       <div className={card}><h3 className="mb-2 font-medium">Ziele im Check</h3>{gf.length === 0 ? <p className="text-sm text-zinc-500">Lege unter „Leseziele“ ein Jahres- oder Monatsziel für Seiten bzw. Bücher an, dann erscheint hier eine Hochrechnung.</p> :
         gf.map(r => <div key={r.g.id} className="mb-3 text-sm"><div className="flex justify-between font-medium"><span>{GT[r.g.goal_type]}</span><span>{r.pct} %</span></div><Bar pct={r.pct} ok={r.ok} /><div className="mt-1 text-zinc-500">{r.text}</div></div>)}</div></div></Sec>
 
-    <Gamification books={books} sessions={sessions} />
-
     <Sec icon={Lightbulb} title="Empfehlungen"><div className="grid gap-3 md:grid-cols-2">
       <div className={card}><h3 className="mb-2 font-medium">Als Nächstes lesen</h3>{wish.length === 0 ? <p className="text-sm text-zinc-500">Deine Leseliste ist leer. Suche unter „Meine Bücher“ online nach neuen Büchern.</p> :
         wish.map(({ b }) => <div key={b.id} className="mb-2 text-sm"><div className="font-medium">{b.title}</div><div className="text-zinc-500">{fav && b.genre === fav ? `Passt zu deinem meistgelesenen Genre (${fav})` : b.total_pages > 0 && b.total_pages <= 250 ? `Kurzes Buch (${b.total_pages} Seiten) – ein schneller Erfolg` : 'Steht auf deiner Leseliste'}</div></div>)}</div>
       <div className={card + ' space-y-2 text-sm'}><h3 className="font-medium">Tipps aus deinen Daten</h3>
         {tot >= 120 && bt && bt[1] > 0 ? <p>Du liest am meisten {bt[0]} ({Math.round(bt[1] / tot * 100)} % deiner Lesezeit). Plane dort eine feste Lesezeit ein.</p> : <p className="text-zinc-500">Sobald genug Lesezeit erfasst ist, siehst du hier deine beste Tageszeit.</p>}
-        {stalled.map(b => <p key={b.id}>„{b.title}“ liegt seit {Math.round(d.t - dn(last.get(b.id)!))} Tagen still. Lust, weiterzulesen?</p>)}</div></div></Sec></div>;
+        {stalled.map(b => <p key={b.id}>„{b.title}“ liegt seit {Math.round(d.t - dn(last.get(b.id)!))} Tagen still. Lust, weiterzulesen?</p>)}</div></div></Sec></>}
+    {tab === 1 && <Gamification books={books} sessions={sessions} part="challenges" />}
+    {tab === 2 && <Gamification books={books} sessions={sessions} part="badges" />}
+    {tab === 3 && <>{pushAvailable ? <PushCard /> : <ReminderCard />}<GamePanels part="protect" /></>}</div></div>;
 }
