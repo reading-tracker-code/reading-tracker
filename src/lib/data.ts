@@ -25,6 +25,9 @@ export async function remove(t: T, id: string) {
 export type GameStatus = 'unknown' | 'ok' | 'missing';
 let gameState: GameStatus = localStorage.getItem('rt-game-ok') === '1' ? 'ok' : 'unknown', pulledOnce = false;
 export const getGameStatus = () => gameState;
+// Reihen: Status der neuen Buchfelder series_name/series_number (Migration 004). Fehlen sie, läuft die App ohne sie weiter.
+let seriesState: 'unknown' | 'ok' | 'missing' = 'unknown';
+export const getSeriesStatus = () => seriesState;
 export const gameReady = () => gameState === 'ok' && (pulledOnce || !navigator.onLine); // erst nach dem ersten vollständigen Abgleich (oder offline mit lokalem Stand)
 export async function saveMany(t: T, rows: any[]) {
   const d = await dbp, tx = d.transaction([t, 'outbox'], 'readwrite');
@@ -50,7 +53,9 @@ export async function sync(light = false) {
           const { data } = await supabase.from(o.t).select('updated_at').eq('id', o.row.id).maybeSingle();
           if (data && data.updated_at !== o.base) { await d.put('conflicts', { key: o.key, t: o.t, local: o.row, serverUpdatedAt: data.updated_at }); await d.delete('outbox', o.key); continue; }
         }
-        const { pages_read, ...row } = o.row; const { error } = await supabase.from(o.t).upsert(row); if (error) { if (o.t === 'game_events') { console.error(error); continue; } throw error; } // feste Client-UUID => keine Duplikate
+        const { pages_read, ...row } = o.row; let { error } = await supabase.from(o.t).upsert(row);
+        if (error && o.t === 'books' && error.code === 'PGRST204' && /series_/.test(error.message)) { seriesState = 'missing'; const { series_name, series_number, ...plain } = row; ({ error } = await supabase.from(o.t).upsert(plain)); } // Migration 004 fehlt: ohne Reihenfelder speichern
+        if (error) { if (o.t === 'game_events') { console.error(error); continue; } throw error; } // feste Client-UUID => keine Duplikate
       }
       await d.delete('outbox', o.key);
     }
@@ -60,6 +65,7 @@ export async function sync(light = false) {
       for (let from = 0; ; from += 1000) { const { data: part, error } = await supabase.from(t).select('*').order('id').range(from, from + 999); if (error) { if (t === 'game_events' && (error.code === 'PGRST205' || error.code === '42P01')) { missing = true; break; } throw error; } data.push(...(part ?? [])); if (!part || part.length < 1000) break; }
       if (t === 'game_events') { gameState = missing ? 'missing' : 'ok'; if (missing) localStorage.removeItem('rt-game-ok'); else localStorage.setItem('rt-game-ok', '1'); } // Tabelle für Spielelemente noch nicht angelegt: App läuft ohne sie weiter
       if (missing) continue;
+      if (t === 'books' && data.length) seriesState = 'series_name' in data[0] ? 'ok' : 'missing';
       const pending = new Set((await d.getAllKeys('outbox')) as string[]), conflicts = new Set((await d.getAllKeys('conflicts')) as string[]), ids = new Set<string>();
       const tx = d.transaction(t, 'readwrite'); for (const r of data) { ids.add(r.id); if (!pending.has(t + r.id) && !conflicts.has(t + r.id)) void tx.store.put(r); } await tx.done; // eine Transaktion statt Tausender Einzelschreibvorgänge
       for (const l of (await d.getAllKeys(t)) as string[]) if (!ids.has(l) && !pending.has(t + l)) await d.delete(t, l);

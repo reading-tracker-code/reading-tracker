@@ -16,10 +16,10 @@ export async function deleteSession(s: Session, all: Session[], books: Book[]) {
   await syncProgress(s.book_id, all.filter(x => x.id !== s.id), books);
 }
 
-const FIELDS: [string, string, string][] = [['title', 'Titel', 'text'], ['author', 'Autor', 'text'], ['genre', 'Genre', 'text'], ['isbn', 'ISBN', 'text'], ['cover_url', 'Cover-URL', 'url'], ['total_pages', 'Seiten gesamt', 'number'], ['current_page', 'Aktuelle Seite', 'number'], ['publication_year', 'Erscheinungsjahr', 'number'], ['start_date', 'Startdatum', 'date'], ['finish_date', 'Beendet am', 'date']];
+const FIELDS: [string, string, string][] = [['title', 'Titel', 'text'], ['author', 'Autor', 'text'], ['series_name', 'Reihe / Serie', 'text'], ['series_number', 'Band-Nr. in der Reihe', 'number'], ['genre', 'Genre', 'text'], ['isbn', 'ISBN', 'text'], ['cover_url', 'Cover-URL', 'url'], ['total_pages', 'Seiten gesamt', 'number'], ['current_page', 'Aktuelle Seite', 'number'], ['publication_year', 'Erscheinungsjahr', 'number'], ['start_date', 'Startdatum', 'date'], ['finish_date', 'Beendet am', 'date']];
 
-export function BookEditor({ book, onClose }: { book: Book; onClose: () => void }) {
-  const [f, setF] = useState<Record<string, any>>({ title: book.title, author: book.author, genre: book.genre ?? '', isbn: book.isbn ?? '', cover_url: book.cover_url ?? '', total_pages: book.total_pages, current_page: book.current_page, publication_year: book.publication_year ?? '', start_date: book.start_date ?? '', finish_date: book.finish_date ?? '', notes: book.notes ?? '' });
+export function BookEditor({ book, all, onClose }: { book: Book; all?: Book[]; onClose: () => void }) {
+  const [f, setF] = useState<Record<string, any>>({ title: book.title, author: book.author, series_name: book.series_name ?? '', series_number: book.series_number ?? '', genre: book.genre ?? '', isbn: book.isbn ?? '', cover_url: book.cover_url ?? '', total_pages: book.total_pages, current_page: book.current_page, publication_year: book.publication_year ?? '', start_date: book.start_date ?? '', finish_date: book.finish_date ?? '', notes: book.notes ?? '' });
   const [err, setErr] = useState('');
   const submit = () => {
     if (!String(f.title).trim()) return setErr('Der Titel fehlt.');
@@ -27,12 +27,14 @@ export function BookEditor({ book, onClose }: { book: Book; onClose: () => void 
     if (f.total_pages && f.current_page > f.total_pages) return setErr('Die aktuelle Seite liegt über der Gesamtseitenzahl.');
     if (f.start_date && f.finish_date && f.finish_date < f.start_date) return setErr('Das Enddatum liegt vor dem Startdatum.');
     if (f.cover_url && !/^https?:\/\//.test(f.cover_url)) return setErr('Die Cover-URL muss mit http:// oder https:// beginnen.');
+    if (f.series_number !== '' && !(f.series_number > 0)) return setErr('Die Band-Nummer muss größer als 0 sein.');
+    if (f.series_number !== '' && !String(f.series_name).trim()) return setErr('Für eine Band-Nummer fehlt der Name der Reihe.');
     const n = (v: string) => v || null;
-    void save('books', { ...book, title: String(f.title).trim(), author: f.author, genre: n(f.genre), isbn: n(f.isbn), cover_url: n(f.cover_url), total_pages: f.total_pages, current_page: f.current_page, publication_year: f.publication_year === '' ? null : f.publication_year, start_date: n(f.start_date), finish_date: n(f.finish_date), notes: n(f.notes) }, book.updated_at);
+    void save('books', { ...book, title: String(f.title).trim(), author: f.author, series_name: n(String(f.series_name).trim()), series_number: f.series_number === '' ? null : f.series_number, genre: n(f.genre), isbn: n(f.isbn), cover_url: n(f.cover_url), total_pages: f.total_pages, current_page: f.current_page, publication_year: f.publication_year === '' ? null : f.publication_year, start_date: n(f.start_date), finish_date: n(f.finish_date), notes: n(f.notes) }, book.updated_at);
     onClose();
   };
-  return <div className="space-y-2"><div className="grid gap-2 md:grid-cols-2">{FIELDS.map(([k, l, t]) => <label key={k} className="text-xs text-zinc-500">{l}
-    <input className={inp + ' mt-1 w-full'} type={t} value={f[k]} onChange={e => setF({ ...f, [k]: t === 'number' ? (e.target.value === '' ? (k === 'publication_year' ? '' : 0) : +e.target.value) : e.target.value })} /></label>)}</div>
+  return <div className="space-y-2"><datalist id="rt-series-edit">{[...new Set((all ?? []).map(b => b.series_name).filter((x): x is string => !!x))].map(s => <option key={s} value={s} />)}</datalist><div className="grid gap-2 md:grid-cols-2">{FIELDS.map(([k, l, t]) => <label key={k} className="text-xs text-zinc-500">{l}
+    <input className={inp + ' mt-1 w-full'} type={t} list={k === 'series_name' ? 'rt-series-edit' : undefined} step={k === 'series_number' ? 'any' : undefined} value={f[k]} onChange={e => setF({ ...f, [k]: t === 'number' ? (e.target.value === '' ? (k === 'publication_year' || k === 'series_number' ? '' : 0) : +e.target.value) : e.target.value })} /></label>)}</div>
     <label className="block text-xs text-zinc-500">Notizen<textarea className={inp + ' mt-1 w-full'} rows={3} value={f.notes} onChange={e => setF({ ...f, notes: e.target.value })} /></label>
     {err && <p className="text-sm text-red-600">{err}</p>}<div className="flex gap-2"><button className={btn} onClick={submit}>Speichern</button><button onClick={onClose}>Abbrechen</button></div></div>;
 }

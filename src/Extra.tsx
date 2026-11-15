@@ -8,9 +8,11 @@ import { computeStats, dayKey, type Book, type Session } from './lib/stats';
 
 import { TZ } from './lib/tz';
 import type { GameEvent } from './lib/game';
+import { GINFO, GT, history, suggestion, type Sugg } from './lib/goals';
+import { GoalAssistant, GoalHint } from './GoalsAssist';
 export type Goal = { id: string; user_id: string; goal_type: string; target_value: number };
 export const PERIODS: [string, string][] = [['7', '7 Tage'], ['30', '30 Tage'], ['90', '90 Tage'], ['month', 'Aktueller Monat'], ['lastmonth', 'Letzter Monat'], ['year', 'Aktuelles Jahr'], ['lastyear', 'Letztes Jahr'], ['all', 'Gesamter Zeitraum']];
-export const GT: Record<string, string> = { books_year: 'Bücher pro Jahr', pages_year: 'Seiten pro Jahr', pages_month: 'Seiten pro Monat', minutes_week: 'Lesezeit pro Woche (Min.)', minutes_day: 'Lesezeit pro Tag (Min.)', days_month: 'Lesetage pro Monat' };
+export { GT };
 
 export function progress(g: Goal, s: Session[], b: Book[]) {
   const now = new Date(), t = dayKey(now, TZ), y = t.slice(0, 4), m = t.slice(0, 7), w = dayKey(new Date(now.getTime() - 6 * 864e5), TZ);
@@ -20,15 +22,18 @@ export function progress(g: Goal, s: Session[], b: Book[]) {
 }
 
 export function Goals({ goals, books, sessions, uid }: { goals: Goal[]; books: Book[]; sessions: Session[]; uid: string }) {
-  const [type, setType] = useState('pages_month'), [target, setTarget] = useState(0);
+  const [type, setType] = useState('pages_month'), [target, setTarget] = useState(0), today = dayKey(new Date(), TZ);
+  const hints = useMemo(() => { const m = new Map<string, Sugg>(); for (const g of goals) { if (!GINFO[g.goal_type]) continue; const s = suggestion(g.goal_type, g.target_value, history(g.goal_type, today, sessions, books, TZ)); if (s) m.set(g.id, s); } return m; }, [goals, sessions, books, today]);
   const rows = goals.map(g => { const v = progress(g, sessions, books); return { g, v, pct: Math.round(v / g.target_value * 100) }; });
-  const row = (r: (typeof rows)[0]) => <div key={r.g.id} className={card}><div className="flex justify-between text-sm"><span>{GT[r.g.goal_type]}: {r.v} / {r.g.target_value} ({r.pct} %)</span>
+  const row = (r: (typeof rows)[0]) => { const h = hints.get(r.g.id); return <div key={r.g.id} className={card}><div className="flex justify-between text-sm"><span>{GT[r.g.goal_type]}: {r.v} / {r.g.target_value} ({r.pct} %)</span>
     <button className="text-red-600" onClick={() => confirm('Ziel löschen?') && void remove('reading_goals', r.g.id)}>Löschen</button></div>
-    <div className="mt-2 h-2 rounded bg-zinc-200 dark:bg-zinc-700"><div className="h-2 rounded bg-indigo-500" style={{ width: `${Math.min(100, r.pct)}%` }} /></div></div>;
+    <div className="mt-2 h-2 rounded bg-zinc-200 dark:bg-zinc-700"><div className="h-2 rounded bg-indigo-500" style={{ width: `${Math.min(100, r.pct)}%` }} /></div>
+    {h && <GoalHint s={h} unit={GINFO[r.g.goal_type].unit} onApply={() => void save('reading_goals', { ...r.g, target_value: h.target })} />}</div>; };
   return <div className="space-y-3"><div className={card + ' flex flex-wrap gap-2'}><select className={inp} value={type} onChange={e => setType(e.target.value)}>{Object.entries(GT).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select>
     <input className={inp + ' w-28'} type="number" min={1} placeholder="Zielwert" value={target || ''} onChange={e => setTarget(+e.target.value)} />
     <button className={btn} onClick={() => { if (target > 0) { void save('reading_goals', { id: crypto.randomUUID(), user_id: uid, goal_type: type, target_value: target }); setTarget(0); } }}>Ziel hinzufügen</button></div>
-    {rows.length === 0 && <Empty icon={Target} title="Noch keine Ziele" text="Lege oben ein Ziel fest, z. B. 300 Seiten pro Monat." />}
+    <GoalAssistant goals={goals} books={books} sessions={sessions} uid={uid} />
+    {rows.length === 0 && <Empty icon={Target} title="Noch keine Ziele" text="Lege oben ein Ziel fest oder lass dir vom Assistenten passende Ziele vorschlagen." />}
     {rows.filter(r => r.pct < 100).map(row)}
     {rows.some(r => r.pct >= 100) && <><h3 className="pt-2 font-medium">Erreichte Ziele (Archiv)</h3>{rows.filter(r => r.pct >= 100).map(row)}</>}</div>;
 }

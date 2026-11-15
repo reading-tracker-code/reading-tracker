@@ -26,7 +26,7 @@ Lokal entwickeln: `.env.example` nach `.env.local` kopieren, Werte eintragen, `n
 - Supabase Free enthält keine automatische Wiederherstellung: regelmäßig exportieren.
 
 ## Aufbau
-`src/lib/stats.ts` zentrale Statistik-Engine · `src/lib/data.ts` IndexedDB + Synchronisierung + Konflikte · `src/lib/tz.ts` Zeitzone · `src/lib/music.ts` Hintergrundmusik für Reading Wrapped (im Browser erzeugt, ein-/ausschaltbar) · `src/lib/game.ts` + `src/Game.tsx` Spielelemente · `supabase/migrations/` Datenbank + RLS.
+`src/lib/stats.ts` zentrale Statistik-Engine · `src/lib/data.ts` IndexedDB + Synchronisierung + Konflikte · `src/lib/tz.ts` Zeitzone · `src/lib/music.ts` Hintergrundmusik für Reading Wrapped (im Browser erzeugt, ein-/ausschaltbar) · `src/lib/game.ts` + `src/Game.tsx` Spielelemente · `src/lib/goals.ts` Zielvorschläge · `src/Library.tsx` Bücher · `src/Reports.tsx` Auswertungen/PDF · `supabase/migrations/` Datenbank + RLS.
 
 ## Spielelemente (XP, Level, Abzeichen-Pop-ups, Streak-Schutz, Überraschungen)
 1. `supabase/migrations/003_game_events.sql` im Supabase-SQL-Editor einmal ausführen (legt die Tabelle `game_events` an).
@@ -34,6 +34,11 @@ Lokal entwickeln: `.env.example` nach `.env.local` kopieren, Werte eintragen, `n
 3. Nur bei genutzten Push-Erinnerungen: Edge Function `send-reminders` mit dem Code aus `supabase/functions/send-reminders/index.ts` neu bereitstellen (Pausenmodus und Schilde gelten dann auch für Push).
 
 Regeln (zentral in `src/lib/game.ts`): 1 XP je Seite und Minute, 10 XP je Lesetag, 100 XP je Buch, Abzeichen-Bonus 25 XP × Stufe. Schutzschilde: 1 zum Start, alle 7 Lesetage ein weiteres (max. 3); sie setzen bei Streaks ab 3 Tagen automatisch ein. Pausenmodus: höchstens 14 Tage am Stück, 30 Tage pro Jahr. Überraschungen: an Lesetagen ab 10 Minuten (ca. 28 %, spätestens nach 5 Lesetagen). Ohne die Tabelle läuft die App weiter, XP und Level funktionieren dann nur ohne Boni.
+
+## Reihen, Leseziele-Assistent, Auswertungen
+1. `supabase/migrations/004_series.sql` im Supabase-SQL-Editor einmal ausführen (neue Buchfelder `series_name`, `series_number`). Ohne diesen Schritt läuft die App weiter, Reihen werden dann aber nicht gespeichert (die Bücher-Seite weist darauf hin).
+2. Neuen Code nach GitHub hochladen und den Deploy abwarten (installiert automatisch das neue Paket `jspdf` für den PDF-Export).
+3. Logik: `src/lib/goals.ts` (Zielvorschläge, Empfehlungen), `src/GoalsAssist.tsx`, `src/Library.tsx` (Bücher: Reihen, Sortieren, Filtern), `src/Reports.tsx` + `src/lib/pdf.ts` (Auswertungen, Vergleiche, PDF).
 
 ## Push-Erinnerungen (optional)
 1. `tools/vapid-generator.html` im Browser öffnen und Schlüssel erzeugen.
