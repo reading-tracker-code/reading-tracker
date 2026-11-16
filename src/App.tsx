@@ -39,21 +39,61 @@ function useLive() {
   return v;
 }
 
+const UN = /^[A-Za-z0-9_.-]{3,20}$/, MAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const authErr = (m: string) => /invalid login/i.test(m) ? 'E-Mail/Benutzername oder Passwort ist falsch.' : /not confirmed/i.test(m) ? 'Bitte bestätige zuerst deine E-Mail-Adresse (Link in deinem Postfach).' : /already registered/i.test(m) ? 'Mit dieser E-Mail gibt es bereits ein Konto.' : m;
+type AMode = 'unknown' | 'login' | 'signup' | 'nocheck';
+
+// Anmeldung: Ein Feld für E-Mail oder Benutzername, ein Button. Die App erkennt selbst, ob das Konto schon existiert (Anmelden) oder neu ist (Konto erstellen).
 function Auth() {
-  const [email, setEmail] = useState(''), [pw, setPw] = useState(''), [msg, setMsg] = useState('');
-  const run = async (kind: 'in' | 'up' | 'reset') => {
-    const r = kind === 'in' ? await supabase.auth.signInWithPassword({ email, password: pw })
-      : kind === 'up' ? await supabase.auth.signUp({ email, password: pw, options: { emailRedirectTo: location.href } })
-      : await supabase.auth.resetPasswordForEmail(email, { redirectTo: location.href });
-    setMsg(r.error ? r.error.message : kind === 'in' ? '' : 'Bitte prüfe dein E-Mail-Postfach.');
+  const [ident, setIdent] = useState(''), [pw, setPw] = useState(''), [mail, setMail] = useState(''), [uname, setUname] = useState(''), [msg, setMsg] = useState(''), [busy, setBusy] = useState(false), [mode, setMode] = useState<AMode>('unknown');
+  const id = ident.trim(), isMail = id.includes('@');
+  useEffect(() => {
+    setMode('unknown'); if (id.length < 3) return;
+    let dead = false;
+    const t = setTimeout(async () => { const { data, error } = await supabase.rpc('auth_identify', { p_ident: id }); if (!dead) setMode(error ? 'nocheck' : data === 'exists' ? 'login' : 'signup'); }, 400);
+    return () => { dead = true; clearTimeout(t); };
+  }, [id]);
+  const emailOf = async () => { if (isMail) return id; const { data } = await supabase.rpc('auth_login_email', { p_ident: id }); return (data as string | null) ?? null; };
+  const submit = async (force?: 'login' | 'signup') => {
+    if (!id || !pw) return setMsg('Bitte gib E-Mail bzw. Benutzernamen und Passwort ein.');
+    setBusy(true); setMsg('');
+    try {
+      let m: AMode = force ?? mode;
+      if (m === 'unknown') { const { data, error } = await supabase.rpc('auth_identify', { p_ident: id }); m = error ? 'nocheck' : data === 'exists' ? 'login' : 'signup'; setMode(m); }
+      if (m === 'signup') {
+        const email = isMail ? id : mail.trim(), name = isMail ? uname.trim() : id;
+        if (!isMail && !MAIL.test(email)) return setMsg('Neu hier? Bitte gib noch deine E-Mail-Adresse an, um dein Konto zu erstellen.');
+        if (!MAIL.test(email)) return setMsg('Bitte gib eine gültige E-Mail-Adresse an.');
+        if (name && !UN.test(name)) return setMsg('Der Benutzername darf 3 bis 20 Zeichen lang sein: Buchstaben, Ziffern, Punkt, Unterstrich, Bindestrich.');
+        if (pw.length < 8) return setMsg('Das Passwort muss mindestens 8 Zeichen lang sein.');
+        if (name) { const f = await supabase.rpc('username_free', { p_name: name }); if (f.data === false) return setMsg('Dieser Benutzername ist leider schon vergeben.'); }
+        const r = await supabase.auth.signUp({ email, password: pw, options: { emailRedirectTo: location.href, data: name ? { username: name } : {} } });
+        setMsg(r.error ? authErr(r.error.message) : r.data.session ? '' : 'Fast geschafft: Bitte bestätige deine E-Mail-Adresse über den Link in deinem Postfach und melde dich danach an.');
+      } else {
+        const email = await emailOf(); if (!email) return setMsg(authErr('Invalid login credentials'));
+        const r = await supabase.auth.signInWithPassword({ email, password: pw }); setMsg(r.error ? authErr(r.error.message) : '');
+      }
+    } finally { setBusy(false); }
   };
+  const reset = async () => {
+    if (!id) return setMsg('Gib oben deine E-Mail-Adresse oder deinen Benutzernamen ein.');
+    const email = await emailOf(); if (email) await supabase.auth.resetPasswordForEmail(email, { redirectTo: location.href });
+    setMsg('Falls es ein Konto dazu gibt, wurde eine E-Mail zum Zurücksetzen des Passworts gesendet.');
+  };
+  const label = busy ? 'Einen Moment…' : mode === 'login' ? 'Anmelden' : mode === 'signup' ? 'Konto erstellen' : mode === 'nocheck' ? 'Anmelden' : 'Weiter';
   return <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-indigo-50 via-zinc-50 to-violet-50 p-4 dark:from-zinc-950 dark:via-zinc-950 dark:to-indigo-950/40"><div className={card + ' w-full max-w-sm space-y-4 !p-6 rt-page'}>
     <div className="flex items-center gap-3"><div className="rounded-xl bg-indigo-600 p-2.5 text-white shadow-md shadow-indigo-600/30"><BookOpen className="h-5 w-5" /></div><div><div className="text-lg font-semibold tracking-tight">Reading Tracker</div><div className="text-xs text-zinc-500">Dein persönliches Lese-Dashboard</div></div></div>
-    <input className={inp + ' w-full'} placeholder="E-Mail" type="email" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} />
-    <input className={inp + ' w-full'} placeholder="Passwort" type="password" autoComplete="current-password" value={pw} onChange={e => setPw(e.target.value)} />
-    <div className="grid grid-cols-2 gap-2"><button className={btn} onClick={() => run('in')}>Anmelden</button><button className="inline-flex items-center justify-center rounded-xl border border-zinc-300 px-4 py-2 text-sm font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800" onClick={() => run('up')}>Registrieren</button></div>
-    <button className="text-sm text-indigo-600 underline dark:text-indigo-300" onClick={() => run('reset')}>Passwort zurücksetzen</button>
-    <div className="flex justify-center gap-4 text-xs text-zinc-500"><a className="underline" href={import.meta.env.BASE_URL + 'impressum.html'}>Impressum</a><a className="underline" href={import.meta.env.BASE_URL + 'datenschutz.html'}>Datenschutz</a></div>{msg && <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-800 dark:bg-amber-500/10 dark:text-amber-300">{msg}</p>}</div></div>;
+    <form className="space-y-4" onSubmit={e => { e.preventDefault(); void submit(); }}>
+      <input className={inp + ' w-full'} placeholder="E-Mail oder Benutzername" autoComplete="username" autoCapitalize="none" autoCorrect="off" spellCheck={false} value={ident} onChange={e => setIdent(e.target.value)} />
+      {mode === 'signup' && !isMail && <input className={inp + ' w-full'} placeholder="E-Mail-Adresse für dein neues Konto" type="email" autoComplete="email" value={mail} onChange={e => setMail(e.target.value)} />}
+      <input className={inp + ' w-full'} placeholder={mode === 'signup' ? 'Passwort (mind. 8 Zeichen)' : 'Passwort'} type="password" autoComplete={mode === 'signup' ? 'new-password' : 'current-password'} value={pw} onChange={e => setPw(e.target.value)} />
+      {mode === 'signup' && isMail && <input className={inp + ' w-full'} placeholder="Benutzername (optional, zum Anmelden)" maxLength={20} autoCapitalize="none" autoCorrect="off" spellCheck={false} value={uname} onChange={e => setUname(e.target.value)} />}
+      {mode === 'signup' && <p className="text-xs text-zinc-500">Neu hier? Dazu gibt es noch kein Konto – mit einem Klick legen wir es für dich an.</p>}
+      {mode === 'nocheck' && <p className="text-xs text-amber-700 dark:text-amber-300">Hinweis: Die automatische Erkennung ist noch nicht eingerichtet (Datei 006_username.sql im Supabase-SQL-Editor ausführen). Bis dahin: Anmelden oder Registrieren mit E-Mail.</p>}
+      <button type="submit" className={btn + ' w-full'} disabled={busy}>{label}</button>
+      {mode === 'nocheck' && <button type="button" className={ghost + ' w-full'} disabled={busy} onClick={() => void submit('signup')}>Registrieren</button>}</form>
+    <button className="text-sm text-indigo-600 underline dark:text-indigo-300" onClick={() => void reset()}>Passwort zurücksetzen</button>
+    <div className="flex justify-center gap-4 text-xs text-zinc-500"><a className="underline" href={import.meta.env.BASE_URL + 'datenschutz.html'}>Datenschutz</a></div>{msg && <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-800 dark:bg-amber-500/10 dark:text-amber-300">{msg}</p>}</div></div>;
 }
 
 function Stat({ l, v }: { l: string; v: string | number }) { return <div className={card + ' !p-3 sm:!p-4'}><div className="text-[11px] font-medium uppercase leading-tight tracking-wide text-zinc-500 sm:text-xs">{l}</div><div className="mt-1 break-words text-xl font-semibold tabular-nums tracking-tight sm:text-2xl md:text-3xl">{v}</div></div>; }

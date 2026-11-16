@@ -60,12 +60,14 @@ export function Heat({ sessions, books }: { sessions: Session[]; books: Book[] }
 }
 
 export function Settings({ books, sessions, goals, events, uid }: { books: Book[]; sessions: Session[]; goals: Goal[]; events: GameEvent[]; uid: string }) {
-  const [st, setSt] = useState(0), [msg, setMsg] = useState(''), [name, setName] = useState(''), [tz, setTz] = useState(TZ), [theme, setTheme] = useState(localStorage.getItem('rt-theme') ?? 'light'), [pw, setPw] = useState('');
-  useEffect(() => { void supabase.from('profiles').select('display_name').eq('id', uid).maybeSingle().then(({ data }) => setName(data?.display_name ?? '')); }, [uid]);
+  const [st, setSt] = useState(0), [msg, setMsg] = useState(''), [name, setName] = useState(''), [uname, setUname] = useState(''), [tz, setTz] = useState(TZ), [theme, setTheme] = useState(localStorage.getItem('rt-theme') ?? 'light'), [pw, setPw] = useState('');
+  useEffect(() => { void supabase.from('profiles').select('display_name,username').eq('id', uid).maybeSingle().then(({ data }) => { setName(data?.display_name ?? ''); setUname(data?.username ?? ''); }); }, [uid]);
   const zones = [...new Set([TZ, ...(((Intl as any).supportedValuesOf?.('timeZone') as string[] | undefined) ?? ['Europe/Berlin'])])];
   const saveProfile = async () => {
-    const { error } = await supabase.from('profiles').upsert({ id: uid, display_name: name.trim() || null, timezone: tz, preferred_theme: theme, preferred_language: 'de' });
-    if (error) return setMsg(error.message);
+    const un = uname.trim();
+    if (un && !/^[A-Za-z0-9_.-]{3,20}$/.test(un)) return setMsg('Der Benutzername darf 3 bis 20 Zeichen lang sein: Buchstaben, Ziffern, Punkt, Unterstrich, Bindestrich.');
+    const { error } = await supabase.from('profiles').upsert({ id: uid, display_name: name.trim() || null, username: un || null, timezone: tz, preferred_theme: theme, preferred_language: 'de' });
+    if (error) return setMsg(error.code === '23505' ? 'Dieser Benutzername ist leider schon vergeben.' : error.message);
     localStorage.setItem('rt-theme', theme); localStorage.setItem('rt-tz', tz); setMsg('Profil gespeichert.');
     if (tz !== TZ || (theme === 'dark') !== document.documentElement.classList.contains('dark')) setTimeout(() => location.reload(), 600);
   };
@@ -108,6 +110,7 @@ export function Settings({ books, sessions, goals, events, uid }: { books: Book[
     <p className="text-xs text-zinc-500">Import überschreibt nie vorhandene Datensätze (gleiche IDs werden übersprungen) und prüft jeden Eintrag.</p></div>}
     {st === 0 && <div className={card + ' space-y-3'}><h3 className="font-medium">Profil</h3><div className="flex flex-wrap items-end gap-3 text-sm">
       <label className={lb}>Anzeigename<input className={inp + fi} value={name} onChange={e => setName(e.target.value)} /></label>
+      <label className={lb}>Benutzername<input className={inp + fi} value={uname} maxLength={20} placeholder="zum Anmelden" autoCapitalize="none" onChange={e => setUname(e.target.value)} /></label>
       <label className={lb}>Zeitzone<select className={inp + fi} value={tz} onChange={e => setTz(e.target.value)}>{zones.map(z => <option key={z}>{z}</option>)}</select></label>
       <label className={lb}>Design<select className={inp + fi} value={theme} onChange={e => setTheme(e.target.value)}><option value="light">Hell</option><option value="dark">Dunkel</option></select></label>
       <label className={lb}>Sprache<select className={inp + fi} disabled><option>Deutsch</option></select></label><button className={btn} onClick={() => void saveProfile()}>Profil speichern</button></div>
@@ -120,6 +123,6 @@ export function Settings({ books, sessions, goals, events, uid }: { books: Book[
     {st === 3 && <div className={card + ' space-y-2'}><h3 className="font-medium">Konto</h3><div className="flex flex-wrap gap-2"><button className={btn} onClick={() => void sync()}>Jetzt synchronisieren</button>
       <button className={btn} onClick={() => void demo()}>Beispieldaten erzeugen</button><button className="rounded-lg border border-zinc-400 px-4 py-2" onClick={() => void undemo()}>Beispieldaten löschen</button>
       <button className="rounded-lg border border-zinc-400 px-4 py-2" onClick={() => void resetGame()}>Spielstand zurücksetzen</button><button className="rounded-lg border border-red-600 px-4 py-2 text-red-600" onClick={wipe}>Alle Daten löschen</button><button className="rounded-lg bg-red-600 px-4 py-2 text-white" onClick={del}>Konto löschen</button></div></div>}
-    <div className="flex flex-wrap gap-4 px-1 text-xs text-zinc-500"><a className="underline" href={import.meta.env.BASE_URL + 'impressum.html'}>Impressum</a><a className="underline" href={import.meta.env.BASE_URL + 'datenschutz.html'}>Datenschutz</a></div>
+    <div className="flex flex-wrap gap-4 px-1 text-xs text-zinc-500"><a className="underline" href={import.meta.env.BASE_URL + 'datenschutz.html'}>Datenschutz</a></div>
     {msg && <p className="text-sm text-amber-600">{msg}</p>}</div>;
 }
